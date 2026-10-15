@@ -5,12 +5,12 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
-import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl } from "./env";
+import { getSupabasePublishableKey, getSupabaseSecretKey, getSupabaseUrl } from "./env";
 
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
+  return createServerClient<Database>(getSupabaseUrl(), getSupabasePublishableKey(), {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -36,7 +36,7 @@ export async function createClient() {
  * 쓰는 쪽에서 반드시 requireAdmin() 으로 권한을 먼저 확인할 것.
  */
 export function createAdminClient() {
-  return createSupabaseClient<Database>(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
+  return createSupabaseClient<Database>(getSupabaseUrl(), getSupabaseSecretKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

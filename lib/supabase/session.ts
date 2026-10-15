@@ -6,7 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "./env";
+import { getSupabasePublishableKey, getSupabaseUrl, isSupabaseConfigured } from "./env";
 
 /** 로그인 없이 열어두는 경로 */
 const PUBLIC_PATHS = ["/login", "/auth"];
@@ -23,7 +23,7 @@ export async function updateSession(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+  const supabase = createServerClient(getSupabaseUrl(), getSupabasePublishableKey(), {
     cookies: {
       getAll() {
         return request.cookies.getAll();

@@ -55,7 +55,10 @@ export default function SetupPage() {
                 </li>
               </ol>
               <p className="help" style={{ marginTop: 12 }}>
-                키는 Supabase 대시보드 → Project Settings → API 에서 복사합니다.
+                키는 Supabase 대시보드 → Project Settings → API Keys 에서 복사합니다.
+                공개용 키는 <code>sb_publishable_…</code>, 비밀 키는{" "}
+                <code>sb_secret_…</code> 로 시작합니다. 예전 형식의 anon /
+                service_role 키도 그대로 쓸 수 있습니다.
                 <br />
                 자세한 내용은 <code>README.md</code>와 <code>prod.md</code>를 참고하세요.
               </p>

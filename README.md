@@ -36,13 +36,21 @@
 cp .env.example .env.local
 ```
 
-대시보드 → **Project Settings → API** 에서 값을 복사해 채운다.
+대시보드 → **Project Settings → API Keys** 에서 값을 복사해 채운다.
 
 | 변수 | 설명 |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | 프로젝트 주소 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 공개용 키. 브라우저로 전달되며 권한은 RLS가 판정한다 |
-| `SUPABASE_SERVICE_ROLE_KEY` | 비밀 키. 서버 전용, 절대 공개 금지 |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 공개용 키 (`sb_publishable_…`). 브라우저로 전달되며 권한은 RLS가 판정한다 |
+| `SUPABASE_SECRET_KEY` | 비밀 키 (`sb_secret_…`). 서버 전용, 절대 공개 금지. 비워도 계정 생성 외 모든 기능이 동작한다 |
+
+> Supabase가 `anon` / `service_role` 키를 publishable / secret 으로 바꾸는 중이다.
+> 예전 키밖에 없는 프로젝트라면 `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
+> `SUPABASE_SERVICE_ROLE_KEY` 이름으로 넣어도 그대로 동작한다.
+> 코드에서 쓰는 방식은 같고 문자열만 다르다.
+
+**값을 채운 뒤에는 개발 서버를 다시 시작해야 한다.** Next.js는 `.env.local`을
+서버가 켜질 때 한 번만 읽는다.
 
 ### 4. 첫 관리자 지정
 

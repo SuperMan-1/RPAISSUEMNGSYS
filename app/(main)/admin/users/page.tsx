@@ -2,16 +2,17 @@ import { StateForm } from "@/components/StateForm";
 import { requireAdmin } from "@/lib/auth";
 import { USER_ROLES } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { hasSupabaseSecretKey } from "@/lib/supabase/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 import { createUser, resetUserPassword, updateUser } from "../actions";
 
 export const metadata = { title: "사용자 관리 · RPA 이슈관리" };
 
-/** 이메일은 auth.users 에 있어서 service_role 키가 있어야 읽을 수 있다 */
+/** 이메일은 auth.users 에 있어서 secret 키가 있어야 읽을 수 있다 */
 async function loadEmails(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return map;
+  if (!hasSupabaseSecretKey()) return map;
 
   try {
     const admin = createAdminClient();
@@ -29,7 +30,7 @@ export default async function AdminUsersPage() {
   const me = await requireAdmin();
   const supabase = await createClient();
 
-  const canManageAccounts = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const canManageAccounts = hasSupabaseSecretKey();
 
   const [{ data: profiles }, emails] = await Promise.all([
     supabase
@@ -209,7 +210,7 @@ export default async function AdminUsersPage() {
             </StateForm>
           ) : (
             <div className="flash flash-warn mb0">
-              <code>SUPABASE_SERVICE_ROLE_KEY</code> 가 설정되지 않아 여기서는 계정을 만들 수
+              <code>SUPABASE_SECRET_KEY</code> 가 설정되지 않아 여기서는 계정을 만들 수
               없습니다. <code>.env.local</code> 에 키를 넣거나, Supabase 대시보드 →
               Authentication → Users 에서 직접 만드세요.
             </div>

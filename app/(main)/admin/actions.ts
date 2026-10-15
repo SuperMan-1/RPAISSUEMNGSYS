@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { FormState } from "@/components/StateForm";
 import { requireAdmin } from "@/lib/auth";
 import type { UserRole } from "@/lib/database.types";
+import { hasSupabaseSecretKey } from "@/lib/supabase/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 // ---------------------------------------------------------------------------
@@ -391,10 +392,10 @@ export async function deleteItem(formData: FormData): Promise<void> {
 export async function createUser(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!hasSupabaseSecretKey()) {
     return {
       error:
-        "SUPABASE_SERVICE_ROLE_KEY 가 설정되지 않아 계정을 만들 수 없습니다. .env.local 에 키를 넣거나 Supabase 대시보드에서 직접 만드세요.",
+        "SUPABASE_SECRET_KEY 가 설정되지 않아 계정을 만들 수 없습니다. .env.local 에 키를 넣거나 Supabase 대시보드에서 직접 만드세요.",
     };
   }
 
@@ -465,8 +466,8 @@ export async function resetUserPassword(
 ): Promise<FormState> {
   await requireAdmin();
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return { error: "SUPABASE_SERVICE_ROLE_KEY 가 없어 비밀번호를 바꿀 수 없습니다." };
+  if (!hasSupabaseSecretKey()) {
+    return { error: "SUPABASE_SECRET_KEY 가 없어 비밀번호를 바꿀 수 없습니다." };
   }
 
   const userId = str(formData, "user_id");
