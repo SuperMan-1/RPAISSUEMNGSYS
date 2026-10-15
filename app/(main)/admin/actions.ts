@@ -243,6 +243,145 @@ export async function deleteIssueType(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// 점검 템플릿
+// ---------------------------------------------------------------------------
+
+export async function createTemplate(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const name = str(formData, "name");
+  if (!name) return { error: "이름을 입력하세요." };
+
+  const { data, error } = await supabase
+    .from("inspection_templates")
+    .insert({
+      name,
+      description: str(formData, "description") || null,
+      site_id: id(formData, "site_id"),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { error: friendly(error ?? { message: "알 수 없는 오류" }, "템플릿 등록에 실패했습니다.") };
+  }
+
+  revalidatePath("/admin/templates");
+  redirect(`/admin/templates/${data.id}`);
+}
+
+export async function updateTemplate(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const templateId = id(formData, "template_id");
+  const name = str(formData, "name");
+  if (!templateId) return { error: "템플릿을 찾을 수 없습니다." };
+  if (!name) return { error: "이름을 입력하세요." };
+
+  const { error } = await supabase
+    .from("inspection_templates")
+    .update({
+      name,
+      description: str(formData, "description") || null,
+      site_id: id(formData, "site_id"),
+      is_active: bool(formData, "is_active"),
+    })
+    .eq("id", templateId);
+
+  if (error) return { error: friendly(error, "저장에 실패했습니다.") };
+
+  revalidatePath("/admin/templates");
+  revalidatePath(`/admin/templates/${templateId}`);
+  return { error: null, ok: "저장했습니다." };
+}
+
+export async function deleteTemplate(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const templateId = id(formData, "template_id");
+  if (!templateId) throw new Error("템플릿을 찾을 수 없습니다.");
+
+  const { error } = await supabase
+    .from("inspection_templates")
+    .delete()
+    .eq("id", templateId);
+  if (error) throw new Error(friendly(error, "삭제에 실패했습니다."));
+
+  revalidatePath("/admin/templates");
+  redirect("/admin/templates");
+}
+
+export async function createItem(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const templateId = id(formData, "template_id");
+  const content = str(formData, "content");
+  if (!templateId) return { error: "템플릿을 찾을 수 없습니다." };
+  if (!content) return { error: "점검 내용을 입력하세요." };
+
+  const { error } = await supabase.from("inspection_items").insert({
+    template_id: templateId,
+    seq: num(formData, "seq"),
+    content,
+    note: str(formData, "note") || null,
+  });
+
+  if (error) return { error: friendly(error, "항목 추가에 실패했습니다.") };
+
+  revalidatePath(`/admin/templates/${templateId}`);
+  redirect(`/admin/templates/${templateId}`);
+}
+
+export async function updateItem(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const itemId = id(formData, "item_id");
+  const templateId = id(formData, "template_id");
+  const content = str(formData, "content");
+  if (!itemId) throw new Error("항목을 찾을 수 없습니다.");
+  if (!content) throw new Error("점검 내용은 비울 수 없습니다.");
+
+  const { error } = await supabase
+    .from("inspection_items")
+    .update({
+      content,
+      seq: num(formData, "seq"),
+      note: str(formData, "note") || null,
+    })
+    .eq("id", itemId);
+
+  if (error) throw new Error(friendly(error, "저장에 실패했습니다."));
+
+  if (templateId) revalidatePath(`/admin/templates/${templateId}`);
+}
+
+export async function deleteItem(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const itemId = id(formData, "item_id");
+  const templateId = id(formData, "template_id");
+  if (!itemId) throw new Error("항목을 찾을 수 없습니다.");
+
+  // 지난 점검 기록은 항목 문구를 복사해 두므로, 항목을 지워도 이력은 남는다
+  const { error } = await supabase.from("inspection_items").delete().eq("id", itemId);
+  if (error) throw new Error(friendly(error, "삭제에 실패했습니다."));
+
+  if (templateId) revalidatePath(`/admin/templates/${templateId}`);
+}
+
+// ---------------------------------------------------------------------------
 // 사용자
 //
 // 계정 생성은 Supabase Auth 를 건드려야 해서 service_role 키가 필요하다.

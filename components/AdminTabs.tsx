@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/admin/sites", label: "사이트 · 과제" },
   { href: "/admin/types", label: "이슈 유형" },
+  { href: "/admin/templates", label: "점검 템플릿" },
   { href: "/admin/users", label: "사용자" },
 ];
 

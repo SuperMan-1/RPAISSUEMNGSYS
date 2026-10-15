@@ -173,6 +173,36 @@ export default async function IssueDetailPage({ params }: PageProps<"/issues/[id
 
   const canDelete = profile.role === "ADMIN" || issue.reporter?.id === profile.id;
 
+  // 정기점검에서 전환된 이슈면 원천 점검을 보여준다
+  let sourceRun: { id: number; label: string } | null = null;
+  if (issue.source_run_id) {
+    const { data: runRow } = await supabase
+      .from("inspection_runs")
+      .select("id, inspected_at, template:inspection_templates(name)")
+      .eq("id", issue.source_run_id)
+      .maybeSingle();
+
+    const run = runRow as unknown as {
+      id: number;
+      inspected_at: string;
+      template: { name: string } | null;
+    } | null;
+
+    if (run) {
+      const { data: resultRow } = await supabase
+        .from("inspection_results")
+        .select("seq")
+        .eq("issue_id", issue.id)
+        .maybeSingle();
+
+      const seq = resultRow?.seq;
+      sourceRun = {
+        id: run.id,
+        label: `${run.template?.name ?? "점검"}${seq ? ` ${seq}번 항목` : ""} · ${formatDateTime(run.inspected_at)}`,
+      };
+    }
+  }
+
   return (
     <main className="page">
       <div className="page-head">
@@ -210,6 +240,13 @@ export default async function IssueDetailPage({ params }: PageProps<"/issues/[id
           )}
         </div>
       </div>
+
+      {sourceRun && (
+        <div className="flash flash-warn">
+          이 이슈는 정기점검에서 전환됐습니다 —{" "}
+          <Link href={`/inspections/${sourceRun.id}`}>원천 점검: {sourceRun.label}</Link>
+        </div>
+      )}
 
       <div className="split">
         <div>

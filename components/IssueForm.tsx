@@ -33,6 +33,7 @@ export function IssueForm({
   types,
   users,
   draft,
+  source,
 }: {
   mode: "create" | "edit";
   issueId?: number;
@@ -41,6 +42,8 @@ export function IssueForm({
   types: IssueFormOption[];
   users: UserOption[];
   draft: IssueDraft;
+  /** 정기점검의 이상 항목에서 전환해 들어온 경우 */
+  source?: { runId: number; resultId: number; label: string };
 }) {
   const [siteId, setSiteId] = useState(draft.siteId);
   const [taskId, setTaskId] = useState(draft.taskId);
@@ -139,6 +142,19 @@ export function IssueForm({
       <form onSubmit={handleSubmit}>
         {mode === "edit" && issueId && (
           <input type="hidden" name="issue_id" value={issueId} />
+        )}
+
+        {source && (
+          <>
+            <input type="hidden" name="source_run_id" value={source.runId} />
+            <input type="hidden" name="from_result_id" value={source.resultId} />
+            <div className="flash flash-warn">
+              정기점검에서 전환하는 이슈입니다. 등록하면 점검 기록과 서로 연결됩니다.
+              <div className="small" style={{ marginTop: 4 }}>
+                {source.label}
+              </div>
+            </div>
+          </>
         )}
 
         {error && <div className="flash flash-error">{error}</div>}

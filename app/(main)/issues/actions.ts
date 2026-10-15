@@ -141,6 +141,7 @@ export async function createIssue(formData: FormData): Promise<ActionError> {
       occurred_at: fromDateTimeLocal(str(formData, "occurred_at")),
       reporter_id: profile.id,
       assignee_id: optionalUuid(formData, "assignee_id"),
+      source_run_id: optionalId(formData, "source_run_id"),
     })
     .select("id, no")
     .single();
@@ -151,6 +152,19 @@ export async function createIssue(formData: FormData): Promise<ActionError> {
 
   await syncIssueTags(supabase, issue.id, parseTags(str(formData, "tags")));
   await insertAttachments(parseUploads(formData), { issue_id: issue.id }, profile.id);
+
+  // 정기점검의 이상 항목에서 전환된 경우 양방향으로 연결한다
+  const fromResultId = optionalId(formData, "from_result_id");
+  if (fromResultId) {
+    await supabase
+      .from("inspection_results")
+      .update({ issue_id: issue.id })
+      .eq("id", fromResultId);
+
+    const sourceRunId = optionalId(formData, "source_run_id");
+    if (sourceRunId) revalidatePath(`/inspections/${sourceRunId}`);
+    revalidatePath("/inspections");
+  }
 
   revalidatePath("/issues");
   revalidatePath("/");

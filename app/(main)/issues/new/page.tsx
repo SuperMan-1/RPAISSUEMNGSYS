@@ -1,6 +1,6 @@
 import { IssueForm } from "@/components/IssueForm";
 import { requireProfile } from "@/lib/auth";
-import { nowDateTimeLocal } from "@/lib/format";
+import { formatDate, nowDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "이슈 등록 · RPA 이슈관리" };
@@ -66,6 +66,58 @@ export default async function NewIssuePage({ searchParams }: PageProps<"/issues/
     }
   }
 
+  // 정기점검의 이상(NG) 항목에서 전환해 들어온 경우
+  const fromRun = one(params.from_run);
+  const fromResult = one(params.from_result);
+  let source: { runId: number; resultId: number; label: string } | undefined;
+  let fromInspection: {
+    siteId: string;
+    taskId: string;
+    title: string;
+    symptom: string;
+    occurredAt: string;
+  } | null = null;
+
+  if (fromRun && fromResult) {
+    const [runRes, resultRes] = await Promise.all([
+      supabase
+        .from("inspection_runs")
+        .select("id, site_id, task_id, inspected_at, template:inspection_templates(name)")
+        .eq("id", Number(fromRun))
+        .maybeSingle(),
+      supabase
+        .from("inspection_results")
+        .select("id, seq, content, comment")
+        .eq("id", Number(fromResult))
+        .eq("run_id", Number(fromRun))
+        .maybeSingle(),
+    ]);
+
+    const run = runRes.data as unknown as {
+      id: number;
+      site_id: number;
+      task_id: number | null;
+      inspected_at: string;
+      template: { name: string } | null;
+    } | null;
+    const result = resultRes.data;
+
+    if (run && result) {
+      source = {
+        runId: run.id,
+        resultId: result.id,
+        label: `${run.template?.name ?? "점검"} ${result.seq}번 항목 · ${formatDate(run.inspected_at)}`,
+      };
+      fromInspection = {
+        siteId: String(run.site_id),
+        taskId: run.task_id ? String(run.task_id) : "",
+        title: result.content,
+        symptom: result.comment ?? "",
+        occurredAt: toDateTimeLocal(run.inspected_at),
+      };
+    }
+  }
+
   return (
     <main className="page">
       <div className="page-head">
@@ -83,16 +135,17 @@ export default async function NewIssuePage({ searchParams }: PageProps<"/issues/
         tasks={tasksRes.data ?? []}
         types={typesRes.data ?? []}
         users={usersRes.data ?? []}
+        source={source}
         draft={{
-          siteId: one(params.site_id),
-          taskId: one(params.task_id),
+          siteId: fromInspection?.siteId ?? one(params.site_id),
+          taskId: fromInspection?.taskId ?? one(params.task_id),
           typeId: copied?.type_id ? String(copied.type_id) : "",
-          title: copied?.title ?? "",
-          symptom: copied?.symptom ?? "",
+          title: fromInspection?.title ?? copied?.title ?? "",
+          symptom: fromInspection?.symptom ?? copied?.symptom ?? "",
           severity: copied?.severity ?? "MEDIUM",
           tags: copied?.tags ?? "",
           assigneeId: profile.id,
-          occurredAt: nowDateTimeLocal(),
+          occurredAt: fromInspection?.occurredAt ?? nowDateTimeLocal(),
         }}
       />
     </main>

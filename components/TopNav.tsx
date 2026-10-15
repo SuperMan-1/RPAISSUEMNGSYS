@@ -5,10 +5,14 @@ import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/login/actions";
 
-/** 아직 만들지 않은 화면은 메뉴에 넣지 않는다 (정기점검은 다음 단계) */
 const LINKS = [
   { href: "/", label: "대시보드", match: (p: string) => p === "/" },
   { href: "/issues", label: "이슈", match: (p: string) => p.startsWith("/issues") },
+  {
+    href: "/inspections",
+    label: "정기점검",
+    match: (p: string) => p.startsWith("/inspections"),
+  },
   {
     href: "/admin/sites",
     label: "관리",
