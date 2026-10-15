@@ -1,6 +1,10 @@
+import Link from "next/link";
+
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default function HomePage() {
+export const metadata = { title: "설치 안내 · RPA 이슈관리" };
+
+export default function SetupPage() {
   const configured = isSupabaseConfigured();
 
   return (
@@ -12,7 +16,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ maxWidth: 680 }}>
         <div className="card-head">
           <h2>설치 상태</h2>
           <span className={`badge ${configured ? "badge-ok" : "badge-warn"}`}>
@@ -22,7 +26,7 @@ export default function HomePage() {
         <div className="card-body">
           {configured ? (
             <p className="mb0">
-              Supabase 연결 정보가 설정됐습니다. 다음 단계로 화면을 붙입니다.
+              Supabase 연결 정보가 설정됐습니다. <Link href="/">대시보드로 이동</Link>
             </p>
           ) : (
             <>
@@ -40,6 +44,10 @@ export default function HomePage() {
                   이어서 <code>supabase/seed.sql</code> 실행
                 </li>
                 <li>
+                  Authentication → Users 에서 계정을 만들고,{" "}
+                  <code>seed.sql</code> 맨 아래 관리자 지정 SQL 실행
+                </li>
+                <li>
                   <code>.env.example</code>을 <code>.env.local</code>로 복사하고 키 3개를 채운다
                 </li>
                 <li>
@@ -49,7 +57,7 @@ export default function HomePage() {
               <p className="help" style={{ marginTop: 12 }}>
                 키는 Supabase 대시보드 → Project Settings → API 에서 복사합니다.
                 <br />
-                자세한 설계 내용은 <code>prod.md</code>를 참고하세요.
+                자세한 내용은 <code>README.md</code>와 <code>prod.md</code>를 참고하세요.
               </p>
             </>
           )}
