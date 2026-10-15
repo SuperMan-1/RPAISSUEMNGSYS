@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/database.types";
 import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl } from "./env";
@@ -30,18 +31,12 @@ export async function createClient() {
 
 /**
  * RLS 를 무시하는 관리자용 클라이언트.
- * 사용자 계정 생성처럼 꼭 필요한 곳에서만, 서버에서만 쓴다.
+ *
+ * 계정 생성(auth.admin) 처럼 꼭 필요한 곳에서만, 서버에서만 쓴다.
+ * 쓰는 쪽에서 반드시 requireAdmin() 으로 권한을 먼저 확인할 것.
  */
 export function createAdminClient() {
-  return createServerClient<Database>(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
-    cookies: {
-      getAll() {
-        return [];
-      },
-      setAll() {
-        // 관리자 클라이언트는 세션을 쓰지 않는다
-      },
-    },
+  return createSupabaseClient<Database>(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
