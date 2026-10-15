@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { InspectionResultsForm, type ResultRow } from "@/components/InspectionResultsForm";
+import { RunAttachmentForm } from "@/components/RunAttachmentForm";
 import { requireProfile } from "@/lib/auth";
-import { RUN_STATUSES } from "@/lib/constants";
+import { ATTACHMENT_BUCKET, RUN_STATUSES } from "@/lib/constants";
 import type { CheckResult, RunStatus } from "@/lib/database.types";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatFileSize } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { deleteRun } from "../actions";
+import { deleteRun, deleteRunAttachment } from "../actions";
 
 type RunDetail = {
   id: number;
@@ -101,6 +102,36 @@ export default async function InspectionDetailPage({
   const linkedIssues = results.filter((r) => r.issue_id);
   const canDelete = run.inspector_id === profile.id || profile.role === "ADMIN";
 
+  // 첨부파일 — 비공개 버킷이라 보기용 서명 URL을 만든다 (10분)
+  const { data: fileRows } = await supabase
+    .from("attachments")
+    .select("id, file_name, content_type, size, storage_path, uploaded_by")
+    .eq("run_id", runId)
+    .order("id");
+
+  const files = fileRows ?? [];
+  const signedByPath = new Map<string, string>();
+  if (files.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from(ATTACHMENT_BUCKET)
+      .createSignedUrls(
+        files.map((f) => f.storage_path),
+        600,
+      );
+    for (const s of signed ?? []) {
+      if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+    }
+  }
+
+  const attachments = files.map((f) => ({
+    id: f.id,
+    name: f.file_name,
+    size: f.size,
+    url: signedByPath.get(f.storage_path) ?? null,
+    isImage: (f.content_type ?? "").startsWith("image/"),
+    canRemove: f.uploaded_by === profile.id || profile.role === "ADMIN",
+  }));
+
   return (
     <main className="page">
       <div className="page-head">
@@ -182,6 +213,73 @@ export default async function InspectionDetailPage({
         note={run.note}
         rows={rows}
       />
+
+      <div className="card">
+        <div className="card-head">
+          <h2>첨부파일 {attachments.length}건</h2>
+          <span className="hint">점검 화면 캡처, 로그 파일 등</span>
+        </div>
+        <div className="card-body">
+          {attachments.length > 0 ? (
+            <>
+              <ul className="attach-list">
+                {attachments.map((a) => (
+                  <li key={a.id}>
+                    {a.url ? (
+                      <a href={a.url} target="_blank" rel="noreferrer">
+                        {a.name}
+                      </a>
+                    ) : (
+                      <span className="dim">{a.name}</span>
+                    )}
+                    <span className="dim"> · {formatFileSize(a.size)}</span>
+                    {a.canRemove && (
+                      <form action={deleteRunAttachment} style={{ display: "inline" }}>
+                        <input type="hidden" name="attachment_id" value={a.id} />
+                        <input type="hidden" name="run_id" value={run.id} />
+                        <ConfirmSubmit
+                          className="linkbtn"
+                          message={`'${a.name}' 을(를) 삭제할까요?`}
+                        >
+                          <span style={{ color: "var(--danger)", marginLeft: 8 }}>삭제</span>
+                        </ConfirmSubmit>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {attachments.some((a) => a.isImage && a.url) && (
+                <div className="thumbs">
+                  {attachments
+                    .filter((a) => a.isImage && a.url)
+                    .map((a) => (
+                      <a key={a.id} href={a.url!} target="_blank" rel="noreferrer">
+                        {/* 서명 URL이라 next/image 최적화 대상이 아니다 */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.url!} alt={a.name} />
+                      </a>
+                    ))}
+                </div>
+              )}
+
+              <hr
+                style={{
+                  border: 0,
+                  borderTop: "1px solid var(--border)",
+                  margin: "16px 0",
+                }}
+              />
+            </>
+          ) : (
+            <p className="dim small" style={{ marginTop: 0 }}>
+              아직 올린 파일이 없습니다.
+            </p>
+          )}
+
+          <RunAttachmentForm runId={run.id} />
+        </div>
+      </div>
     </main>
   );
 }

@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
+import { insertAttachments, parseUploads } from "@/lib/attachments";
 import { requireProfile } from "@/lib/auth";
-import { ATTACHMENT_BUCKET, BLOCKED_EXTENSIONS, MAX_UPLOAD_MB } from "@/lib/constants";
+import { ATTACHMENT_BUCKET } from "@/lib/constants";
 import type {
   ActionResult,
   IssueStatus,
@@ -48,70 +49,6 @@ function optionalUuid(formData: FormData, key: string): string | null {
   return v || null;
 }
 
-type UploadedFile = { path: string; name: string; type: string; size: number };
-
-/**
- * 클라이언트가 Storage 에 먼저 올리고 넘겨준 첨부 메타데이터.
- * 업로드 자체는 브라우저에서 끝났지만, 값은 다시 검증한다.
- */
-function parseUploads(formData: FormData): UploadedFile[] {
-  const raw = str(formData, "attachments");
-  if (!raw) return [];
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-
-  const maxBytes = MAX_UPLOAD_MB * 1024 * 1024;
-  const out: UploadedFile[] = [];
-
-  for (const item of parsed) {
-    if (!item || typeof item !== "object") continue;
-    const { path, name, type, size } = item as Record<string, unknown>;
-    if (typeof path !== "string" || typeof name !== "string") continue;
-    if (path.includes("..") || path.startsWith("/")) continue;
-
-    const ext = name.lastIndexOf(".") >= 0 ? name.slice(name.lastIndexOf(".")).toLowerCase() : "";
-    if (BLOCKED_EXTENSIONS.includes(ext)) continue;
-
-    const bytes = typeof size === "number" && size >= 0 ? size : 0;
-    if (bytes > maxBytes) continue;
-
-    out.push({
-      path,
-      name: name.slice(0, 255),
-      type: typeof type === "string" && type ? type : "application/octet-stream",
-      size: bytes,
-    });
-  }
-
-  return out.slice(0, 20);
-}
-
-async function insertAttachments(
-  uploads: UploadedFile[],
-  owner: { issue_id?: number; action_id?: number; run_id?: number },
-  uploadedBy: string,
-) {
-  if (uploads.length === 0) return;
-  const supabase = await createClient();
-
-  await supabase.from("attachments").insert(
-    uploads.map((u) => ({
-      ...owner,
-      file_name: u.name,
-      storage_path: u.path,
-      content_type: u.type,
-      size: u.size,
-      uploaded_by: uploadedBy,
-    })),
-  );
-}
-
 // ---------------------------------------------------------------------------
 // 이슈 등록 / 수정
 // ---------------------------------------------------------------------------
@@ -151,7 +88,7 @@ export async function createIssue(formData: FormData): Promise<ActionError> {
   }
 
   await syncIssueTags(supabase, issue.id, parseTags(str(formData, "tags")));
-  await insertAttachments(parseUploads(formData), { issue_id: issue.id }, profile.id);
+  await insertAttachments(supabase, parseUploads(formData), { issue_id: issue.id }, profile.id);
 
   // 정기점검의 이상 항목에서 전환된 경우 양방향으로 연결한다
   const fromResultId = optionalId(formData, "from_result_id");
@@ -203,7 +140,7 @@ export async function updateIssue(formData: FormData): Promise<ActionError> {
   if (error) return { error: `이슈 수정에 실패했습니다. (${error.message})` };
 
   await syncIssueTags(supabase, issueId, parseTags(str(formData, "tags")));
-  await insertAttachments(parseUploads(formData), { issue_id: issueId }, profile.id);
+  await insertAttachments(supabase, parseUploads(formData), { issue_id: issueId }, profile.id);
 
   revalidatePath("/issues");
   revalidatePath(`/issues/${issueId}`);
@@ -325,7 +262,7 @@ export async function addAction(formData: FormData): Promise<ActionError> {
     return { error: `처리 이력 등록에 실패했습니다. (${error?.message ?? "알 수 없는 오류"})` };
   }
 
-  await insertAttachments(parseUploads(formData), { action_id: action.id }, profile.id);
+  await insertAttachments(supabase, parseUploads(formData), { action_id: action.id }, profile.id);
 
   // 이슈 상태 자동 반영 (prod.md 7.2)
   const closeIssue = str(formData, "close_issue") === "1";

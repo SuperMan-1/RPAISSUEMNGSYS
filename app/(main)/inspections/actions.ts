@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import type { FormState } from "@/components/StateForm";
+import { insertAttachments, parseUploads } from "@/lib/attachments";
 import { requireProfile } from "@/lib/auth";
+import { ATTACHMENT_BUCKET } from "@/lib/constants";
 import type { CheckResult } from "@/lib/database.types";
 import { fromDateTimeLocal } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -167,6 +169,55 @@ export async function saveAndConvert(formData: FormData): Promise<void> {
 
   revalidatePath(`/inspections/${runId}`);
   redirect(`/issues/new?from_run=${runId}&from_result=${resultId}`);
+}
+
+// ---------------------------------------------------------------------------
+// 점검 첨부파일
+//
+// 파일 자체는 브라우저가 Storage 로 직접 올린다 (lib/upload.ts).
+// 여기서는 그 메타데이터만 받아 기록한다.
+// ---------------------------------------------------------------------------
+
+export async function addRunAttachments(formData: FormData): Promise<{ error: string } | undefined> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const runId = id(formData, "run_id");
+  if (!runId) return { error: "점검을 찾을 수 없습니다." };
+
+  const uploads = parseUploads(formData);
+  if (uploads.length === 0) return { error: "올릴 파일을 선택하세요." };
+
+  await insertAttachments(supabase, uploads, { run_id: runId }, profile.id);
+
+  revalidatePath(`/inspections/${runId}`);
+}
+
+export async function deleteRunAttachment(formData: FormData): Promise<void> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const attachmentId = id(formData, "attachment_id");
+  const runId = id(formData, "run_id");
+  if (!attachmentId) throw new Error("첨부파일을 찾을 수 없습니다.");
+
+  const { data: att } = await supabase
+    .from("attachments")
+    .select("storage_path, uploaded_by")
+    .eq("id", attachmentId)
+    .maybeSingle();
+
+  if (!att) throw new Error("첨부파일을 찾을 수 없습니다.");
+  if (att.uploaded_by !== profile.id && profile.role !== "ADMIN") {
+    throw new Error("올린 사람 또는 관리자만 삭제할 수 있습니다.");
+  }
+
+  await supabase.storage.from(ATTACHMENT_BUCKET).remove([att.storage_path]);
+
+  const { error } = await supabase.from("attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(`삭제에 실패했습니다. (${error.message})`);
+
+  if (runId) revalidatePath(`/inspections/${runId}`);
 }
 
 export async function deleteRun(formData: FormData): Promise<void> {
