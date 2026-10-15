@@ -1,0 +1,92 @@
+{# 공통 표시 조각 #}
+
+{% macro status_badge(status) -%}
+  {%- set cls = {
+    'RECEIVED': 'badge-info',
+    'IN_PROGRESS': 'badge-warn',
+    'ACTION_DONE': 'badge-ok',
+    'CLOSED': 'badge-neutral',
+    'ON_HOLD': 'badge-neutral',
+  }.get(status, 'badge-neutral') -%}
+  <span class="badge {{ cls }}">{{ STATUSES.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro severity_badge(severity) -%}
+  {%- set cls = {
+    'HIGH': 'badge-danger',
+    'MEDIUM': 'badge-warn',
+    'LOW': 'badge-neutral',
+  }.get(severity, 'badge-neutral') -%}
+  <span class="badge {{ cls }}">{{ SEVERITIES.get(severity, severity) }}</span>
+{%- endmacro %}
+
+{% macro action_result_badge(result) -%}
+  {%- set cls = {
+    'RESOLVED': 'badge-ok',
+    'TEMPORARY': 'badge-warn',
+    'UNRESOLVED': 'badge-danger',
+  }.get(result, 'badge-neutral') -%}
+  <span class="badge {{ cls }}">{{ ACTION_RESULTS.get(result, result) }}</span>
+{%- endmacro %}
+
+{% macro check_badge(result) -%}
+  {%- set cls = {
+    'OK': 'badge-ok',
+    'NG': 'badge-danger',
+    'NA': 'badge-neutral',
+  }.get(result, 'badge-neutral') -%}
+  <span class="badge {{ cls }}">{{ CHECK_RESULTS.get(result, result) }}</span>
+{%- endmacro %}
+
+{% macro tag_list(tags) -%}
+  {%- for t in tags %}<a class="tag" href="/issues?tag={{ t.name | urlencode }}">#{{ t.name }}</a>{% endfor -%}
+{%- endmacro %}
+
+{% macro attachments(items, empty_text='') -%}
+  {% if items %}
+    <ul class="attach-list">
+      {% for a in items %}
+        <li>
+          <a href="/files/{{ a.id }}">{{ a.filename }}</a>
+          <span class="dim">· {{ a.size_label }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    {% set images = items | selectattr('is_image') | list %}
+    {% if images %}
+      <div class="thumbs">
+        {% for a in images %}
+          <a href="/files/{{ a.id }}" target="_blank"><img src="/files/{{ a.id }}" alt="{{ a.filename }}"></a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% elif empty_text %}
+    <div class="dim small">{{ empty_text }}</div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro pager(page, pages, base_query) -%}
+  {% if pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}
+        <a href="?{{ base_query }}page={{ page - 1 }}">이전</a>
+      {% else %}
+        <span class="off">이전</span>
+      {% endif %}
+      {% set start = [1, page - 2] | max %}
+      {% set end = [pages, start + 4] | min %}
+      {% for p in range(start, end + 1) %}
+        {% if p == page %}
+          <span class="cur">{{ p }}</span>
+        {% else %}
+          <a href="?{{ base_query }}page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page < pages %}
+        <a href="?{{ base_query }}page={{ page + 1 }}">다음</a>
+      {% else %}
+        <span class="off">다음</span>
+      {% endif %}
+    </div>
+  {% endif %}
+{%- endmacro %}

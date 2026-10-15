@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{{ '이슈 수정' if issue else '이슈 등록' }} · {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ '이슈 수정' if issue else '이슈 등록' }}</h1>
+    {% if issue %}
+      <p class="sub"><span class="mono">{{ issue.no }}</span></p>
+    {% else %}
+      <p class="sub">입력하는 동안 오른쪽에 비슷한 이슈가 자동으로 표시됩니다.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="split">
+  <form method="post" enctype="multipart/form-data"
+        action="{{ '/issues/' ~ issue.id ~ '/edit' if issue else '/issues/new' }}">
+    <div class="card">
+      <div class="card-head"><h2>발생 정보</h2></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div>
+            <label class="lbl" for="site_id">사이트<span class="req">*</span></label>
+            <select id="site_id" name="site_id" required>
+              <option value="">선택하세요</option>
+              {% for s in sites %}
+                <option value="{{ s.id }}" {{ 'selected' if draft.site_id == s.id }}>{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lbl" for="task_id">과제</label>
+            <select id="task_id" name="task_id" data-selected="{{ draft.task_id or '' }}">
+              <option value="">(선택 안 함)</option>
+            </select>
+            <div class="help">사이트를 고르면 과제 목록이 채워집니다.</div>
+          </div>
+          <div>
+            <label class="lbl" for="occurred_at">발생일시<span class="req">*</span></label>
+            <input type="datetime-local" id="occurred_at" name="occurred_at"
+                   value="{{ draft.occurred_at | dtinput }}" required>
+          </div>
+          <div>
+            <label class="lbl" for="type_id">이슈 유형</label>
+            <select id="type_id" name="type_id">
+              <option value="">(선택 안 함)</option>
+              {% for t in types %}
+                <option value="{{ t.id }}" {{ 'selected' if draft.type_id == t.id }}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lbl" for="severity">심각도</label>
+            <select id="severity" name="severity">
+              {% for k, v in SEVERITIES.items() %}
+                <option value="{{ k }}" {{ 'selected' if draft.severity == k }}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lbl" for="assignee_id">담당자</label>
+            <select id="assignee_id" name="assignee_id">
+              <option value="">(미지정)</option>
+              {% for u in users %}
+                <option value="{{ u.id }}" {{ 'selected' if draft.assignee_id == u.id }}>{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>이슈 내용</h2></div>
+      <div class="card-body">
+        <div class="form-row">
+          <label class="lbl" for="title">제목<span class="req">*</span></label>
+          <input type="text" id="title" name="title" value="{{ draft.title }}" maxlength="200"
+                 placeholder="예) 세금계산서 등록 중 로그인 화면에서 멈춤" required autofocus>
+        </div>
+        <div class="form-row">
+          <label class="lbl" for="symptom">증상 상세</label>
+          <textarea id="symptom" name="symptom" rows="9"
+                    placeholder="어떤 상황에서 무엇이 어떻게 됐는지, 오류 메시지가 있으면 그대로 적어주세요.">{{ draft.symptom }}</textarea>
+        </div>
+        <div class="form-row">
+          <label class="lbl" for="tags">태그</label>
+          <input type="text" id="tags" name="tags" value="{{ draft.tags }}"
+                 placeholder="쉼표로 구분 — 예) 로그인, 인증서, 타임아웃">
+          <div class="help">나중에 비슷한 이슈를 찾을 때 쓰입니다.</div>
+        </div>
+        <div class="form-row">
+          <label class="lbl" for="attachments">첨부파일</label>
+          <input type="file" id="attachments" name="attachments" multiple>
+          <div class="help">오류 화면 캡처, 로그 파일 등 (1개당 최대 20MB)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">{{ '저장' if issue else '등록' }}</button>
+      <a class="btn" href="{{ '/issues/' ~ issue.id if issue else '/issues' }}">취소</a>
+    </div>
+  </form>
+
+  <div class="card" style="position:sticky; top:16px;">
+    <div class="card-head">
+      <h2>비슷한 이슈</h2>
+      <span class="hint">다른 사이트 사례 우선</span>
+    </div>
+    <div class="card-body tight" id="similar-box"
+         data-exclude="{{ issue.id if issue else '' }}" data-copy-target="">
+      <div class="empty">제목이나 증상을 입력하면 비슷한 이슈를 찾아 보여줍니다.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="/static/app.js"></script>{% endblock %}

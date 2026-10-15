@@ -1,0 +1,43 @@
+{% macro nav_link(href, label, key, current) %}
+  <a href="{{ href }}" class="{{ 'active' if current == key else '' }}">{{ label }}</a>
+{% endmacro %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_title }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+{% if user %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">{{ app_title }}</a>
+    <nav class="topnav">
+      {{ nav_link('/', '대시보드', 'home', nav) }}
+      {{ nav_link('/issues', '이슈', 'issues', nav) }}
+      {{ nav_link('/inspections', '정기점검', 'inspections', nav) }}
+      {% if user.is_admin %}
+        {{ nav_link('/admin/sites', '관리', 'admin', nav) }}
+      {% endif %}
+    </nav>
+    <div class="topuser">
+      <span><strong>{{ user.name }}</strong>{% if user.is_admin %} · 관리자{% endif %}</span>
+      <a href="/change-password">비밀번호</a>
+      <a href="/logout">로그아웃</a>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<main class="page">
+  {% for f in flashes %}
+    <div class="flash flash-{{ f.category }}">{{ f.message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

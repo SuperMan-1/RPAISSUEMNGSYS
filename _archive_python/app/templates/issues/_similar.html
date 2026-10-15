@@ -1,0 +1,35 @@
+{% import "_macros.html" as m %}
+{% if hits %}
+  <ul class="similar">
+    {% for h in hits %}
+      <li>
+        <a class="s-title" href="/issues/{{ h.issue.id }}" target="_blank">{{ h.issue.title }}</a>
+        <div class="s-meta">
+          <span class="mono">{{ h.issue.no }}</span>
+          <span class="sep">|</span>{{ h.issue.site.name }}{% if h.issue.task %} › {{ h.issue.task.name }}{% endif %}
+          <span class="sep">|</span>{{ h.issue.occurred_at | d }}
+          <span class="sep">|</span>{{ m.status_badge(h.issue.status) }}
+        </div>
+        {% if h.last_action %}
+          <div class="s-action">{{ h.last_action.content }}</div>
+          <div class="btn-row" style="margin-top:6px;">
+            {% if copy_target %}
+              <button type="button" class="btn btn-sm"
+                      data-copy-action="{{ h.last_action.content }}"
+                      data-ref="{{ h.issue.no }}"
+                      data-target="{{ copy_target }}">조치내용 가져오기</button>
+            {% endif %}
+            <a class="btn btn-sm" href="/issues/{{ h.issue.id }}" target="_blank">상세 보기</a>
+          </div>
+        {% else %}
+          <div class="small dim" style="margin-top:4px;">
+            등록된 조치사항 없음
+            <a href="/issues/{{ h.issue.id }}" target="_blank">상세 보기</a>
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="empty">비슷한 이슈가 없습니다.</div>
+{% endif %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}로그인 · {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="login-wrap">
+  <form class="login-box" method="post" action="/login">
+    <h1>{{ app_title }}</h1>
+    <p class="sub">사내 RPA 유지보수 이슈 통합관리</p>
+
+    {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div class="form-row">
+      <label class="lbl" for="username">아이디</label>
+      <input type="text" id="username" name="username" value="{{ username or '' }}"
+             autocomplete="username" autofocus required>
+    </div>
+    <div class="form-row">
+      <label class="lbl" for="password">비밀번호</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">로그인</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}이슈 · {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>이슈</h1>
+    <p class="sub">전체 {{ total }}건{% if f.q or f.site_id or f.status or f.open_only %} (조건 검색){% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/issues/new">+ 이슈 등록</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="get" action="/issues">
+      <div class="filters">
+        <div class="wide">
+          <label class="lbl" for="q">검색어</label>
+          <input type="search" id="q" name="q" value="{{ f.q }}" placeholder="제목·증상·이슈번호">
+        </div>
+        <div>
+          <label class="lbl" for="fsite">사이트</label>
+          <select id="fsite" name="site_id">
+            <option value="">전체</option>
+            {% for s in sites %}
+              <option value="{{ s.id }}" {{ 'selected' if f.site_id == s.id }}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="ftask">과제</label>
+          <select id="ftask" name="task_id">
+            <option value="">전체</option>
+            {% for t in tasks %}
+              {% if not f.site_id or t.site_id == f.site_id %}
+                <option value="{{ t.id }}" {{ 'selected' if f.task_id == t.id }}>
+                  {{ t.site.name }} › {{ t.name }}
+                </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="ftype">유형</label>
+          <select id="ftype" name="type_id">
+            <option value="">전체</option>
+            {% for t in types %}
+              <option value="{{ t.id }}" {{ 'selected' if f.type_id == t.id }}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="fstatus">상태</label>
+          <select id="fstatus" name="status">
+            <option value="">전체</option>
+            {% for k, v in STATUSES.items() %}
+              <option value="{{ k }}" {{ 'selected' if f.status == k }}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="fsev">심각도</label>
+          <select id="fsev" name="severity">
+            <option value="">전체</option>
+            {% for k, v in SEVERITIES.items() %}
+              <option value="{{ k }}" {{ 'selected' if f.severity == k }}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="fassignee">담당자</label>
+          <select id="fassignee" name="assignee_id">
+            <option value="">전체</option>
+            {% for u in users %}
+              <option value="{{ u.id }}" {{ 'selected' if f.assignee_id == u.id }}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="lbl">&nbsp;</label>
+          <label class="checkline">
+            <input type="checkbox" name="open_only" value="1" {{ 'checked' if f.open_only }}>
+            미종료만
+          </label>
+        </div>
+      </div>
+      {% if f.tag %}<input type="hidden" name="tag" value="{{ f.tag }}">{% endif %}
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="submit" class="btn btn-primary">검색</button>
+        <a class="btn" href="/issues">초기화</a>
+        {% if f.tag %}<span class="small dim">태그 필터: <span class="tag">#{{ f.tag }}</span></span>{% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body tight">
+    {% if issues %}
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th class="nowrap">번호</th>
+            <th class="nowrap">발생일</th>
+            <th class="nowrap">사이트 · 과제</th>
+            <th>제목</th>
+            <th class="nowrap">유형</th>
+            <th class="nowrap">심각도</th>
+            <th class="nowrap">상태</th>
+            <th class="nowrap">담당자</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in issues %}
+            <tr>
+              <td class="nowrap mono small">{{ i.no }}</td>
+              <td class="nowrap small">{{ i.occurred_at | d }}</td>
+              <td class="nowrap small">
+                {{ i.site.name }}
+                {% if i.task %}<br><span class="dim">› {{ i.task.name }}</span>{% endif %}
+              </td>
+              <td>
+                <a href="/issues/{{ i.id }}">{{ i.title }}</a>
+                {% if i.tags %}<div>{{ m.tag_list(i.tags) }}</div>{% endif %}
+              </td>
+              <td class="nowrap small">{{ i.type.name if i.type else '-' }}</td>
+              <td class="nowrap">{{ m.severity_badge(i.severity) }}</td>
+              <td class="nowrap">{{ m.status_badge(i.status) }}</td>
+              <td class="nowrap small">{{ i.assignee.name if i.assignee else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {{ m.pager(page, pages, base_query) }}
+    {% else %}
+      <div class="empty">
+        조건에 맞는 이슈가 없습니다.
+        <div style="margin-top:12px;"><a class="btn btn-primary btn-sm" href="/issues/new">+ 이슈 등록</a></div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

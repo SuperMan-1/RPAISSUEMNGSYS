@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ issue.no }} {{ issue.title }} · {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ issue.title }}</h1>
+    <p class="sub">
+      <span class="mono">{{ issue.no }}</span>
+      <span class="sep">|</span>{{ issue.site.name }}{% if issue.task %} › {{ issue.task.name }}{% endif %}
+      <span class="sep">|</span>등록 {{ issue.created_at | dt }} ({{ issue.reporter.name }})
+    </p>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="/issues/{{ issue.id }}/edit">수정</a>
+    <a class="btn" href="/issues/new?copy_from={{ issue.id }}&site_id={{ issue.site_id }}">이 내용으로 새 이슈</a>
+    {% if user.is_admin or issue.reporter_id == user.id %}
+      <form method="post" action="/issues/{{ issue.id }}/delete" style="display:inline"
+            data-confirm="이슈 {{ issue.no }} 과(와) 조치사항·첨부를 모두 삭제합니다. 계속할까요?">
+        <button type="submit" class="btn btn-danger">삭제</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="split">
+  <div>
+    <!-- 이슈 정보 -->
+    <div class="card">
+      <div class="card-head">
+        <h2>이슈 정보</h2>
+        <div>{{ m.severity_badge(issue.severity) }} {{ m.status_badge(issue.status) }}</div>
+      </div>
+      <div class="card-body">
+        <div class="meta">
+          <div><div class="k">사이트</div><div class="v">{{ issue.site.name }}</div></div>
+          <div><div class="k">과제</div><div class="v">{{ issue.task.name if issue.task else '-' }}</div></div>
+          <div><div class="k">유형</div><div class="v">{{ issue.type.name if issue.type else '-' }}</div></div>
+          <div><div class="k">발생일시</div><div class="v">{{ issue.occurred_at | dt }}</div></div>
+          <div><div class="k">등록자</div><div class="v">{{ issue.reporter.name }}</div></div>
+          <div><div class="k">담당자</div><div class="v">{{ issue.assignee.name if issue.assignee else '미지정' }}</div></div>
+          {% if issue.closed_at %}
+            <div><div class="k">종료일시</div><div class="v">{{ issue.closed_at | dt }}</div></div>
+          {% endif %}
+        </div>
+
+        {% if issue.tags %}
+          <div style="margin-top:14px;">{{ m.tag_list(issue.tags) }}</div>
+        {% endif %}
+
+        <div style="margin-top:16px;">
+          <div class="k" style="font-size:12px; color:var(--text-faint); font-weight:600;">증상</div>
+          <div class="prose" style="margin-top:4px;">{{ issue.symptom or '(내용 없음)' }}</div>
+        </div>
+
+        {{ m.attachments(issue.attachments) }}
+      </div>
+    </div>
+
+    <!-- 조치사항 -->
+    <div class="card" id="actions">
+      <div class="card-head">
+        <h2>조치사항 {{ issue.actions | length }}건</h2>
+        <span class="hint">한 이슈에 여러 번 등록할 수 있습니다</span>
+      </div>
+      <div class="card-body tight">
+        {% if issue.actions %}
+          <ul class="timeline">
+            {% for a in issue.actions %}
+              <li>
+                <div class="t-head">
+                  <span class="who">{{ a.actor.name }}</span>
+                  <span>{{ a.acted_at | dt }}</span>
+                  {{ m.action_result_badge(a.result) }}
+                  {% if a.actor_id == user.id or user.is_admin %}
+                    <form method="post" action="/actions/{{ a.id }}/delete" style="margin-left:auto"
+                          data-confirm="이 조치사항을 삭제할까요?">
+                      <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                    </form>
+                  {% endif %}
+                </div>
+                <div class="prose">{{ a.content }}</div>
+                {{ m.attachments(a.attachments) }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty">아직 등록된 조치사항이 없습니다.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 조치사항 등록 -->
+    <div class="card">
+      <div class="card-head"><h2>조치사항 등록</h2></div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" action="/issues/{{ issue.id }}/actions">
+          <div class="form-row">
+            <label class="lbl" for="content">조치내용<span class="req">*</span></label>
+            <textarea id="content" name="content" rows="7" required
+                      placeholder="무엇을 어떻게 조치했는지 적어주세요. 오른쪽 비슷한 이슈에서 '조치내용 가져오기'로 불러올 수 있습니다."></textarea>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label class="lbl" for="acted_at">조치일시</label>
+              <input type="datetime-local" id="acted_at" name="acted_at" value="{{ now | dtinput }}">
+            </div>
+            <div>
+              <label class="lbl" for="result">조치 결과</label>
+              <select id="result" name="result">
+                {% for k, v in ACTION_RESULTS.items() %}
+                  <option value="{{ k }}">{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="lbl" for="act_files">첨부파일</label>
+              <input type="file" id="act_files" name="attachments" multiple>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:12px; align-items:center;">
+            <button type="submit" class="btn btn-primary">조치사항 등록</button>
+            {% if issue.status != 'CLOSED' %}
+              <label class="checkline">
+                <input type="checkbox" name="close_issue" value="1">
+                등록과 함께 이슈 종료
+              </label>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 사이드 -->
+  <div>
+    <div class="card">
+      <div class="card-head"><h2>상태 변경</h2></div>
+      <div class="card-body">
+        <form method="post" action="/issues/{{ issue.id }}/status" class="btn-row">
+          <select name="status" style="flex:1">
+            {% for k, v in STATUSES.items() %}
+              <option value="{{ k }}" {{ 'selected' if issue.status == k }}>{{ v }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">변경</button>
+        </form>
+        <form method="post" action="/issues/{{ issue.id }}/assignee" class="btn-row" style="margin-top:10px;">
+          <select name="assignee_id" style="flex:1">
+            <option value="">(미지정)</option>
+            {% for u in users %}
+              <option value="{{ u.id }}" {{ 'selected' if issue.assignee_id == u.id }}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">담당자</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="position:sticky; top:16px;">
+      <div class="card-head">
+        <h2>비슷한 이슈</h2>
+        <span class="hint">다른 사이트 사례 우선</span>
+      </div>
+      <div class="card-body tight" id="similar-box" data-exclude="{{ issue.id }}" data-copy-target="content">
+        {% include "issues/_similar.html" with context %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="/static/app.js"></script>{% endblock %}
