@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { SeverityBadge, StatusBadge } from "@/components/Badges";
+import { ActionResultBadge, SeverityBadge, StatusBadge } from "@/components/Badges";
 import { requireProfile } from "@/lib/auth";
 import { ISSUE_STATUSES, PAGE_SIZE, SEVERITIES } from "@/lib/constants";
-import type { IssueStatus, Severity } from "@/lib/database.types";
+import type { ActionResult, IssueStatus, Severity } from "@/lib/database.types";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,6 +22,19 @@ type IssueRow = {
   assignee: { name: string } | null;
   issue_tags: { tags: { name: string } | null }[];
 };
+
+/** 목록에서 펼쳐 보여줄 처리 이력 한 건 */
+type ActionRow = {
+  id: number;
+  issue_id: number;
+  acted_at: string;
+  content: string;
+  result: ActionResult;
+  actor: { name: string } | null;
+};
+
+/** 조치내용 검색에서 한 번에 훑을 최대 건수 */
+const ACTION_SEARCH_LIMIT = 500;
 
 function one(v: string | string[] | undefined): string {
   if (Array.isArray(v)) return v[0] ?? "";
@@ -98,9 +111,24 @@ export default async function IssuesPage({ searchParams }: PageProps<"/issues">)
 
   const search = sanitizeSearch(f.q);
   if (search) {
-    query = query.or(
-      `title.ilike.%${search}%,symptom.ilike.%${search}%,no.ilike.%${search}%`,
-    );
+    // 해결 방법은 제목이 아니라 조치내용에 적힌다. 거기까지 걸려야 과거 사례를 찾는다.
+    // 다른 테이블이라 or() 에 바로 섞을 수 없어, 걸린 이슈 id 를 먼저 구해 함께 넘긴다.
+    const { data: hit } = await supabase
+      .from("actions")
+      .select("issue_id")
+      .ilike("content", `%${search}%`)
+      .limit(ACTION_SEARCH_LIMIT);
+
+    const byAction = [...new Set((hit ?? []).map((r) => r.issue_id))];
+
+    const clauses = [
+      `title.ilike.%${search}%`,
+      `symptom.ilike.%${search}%`,
+      `no.ilike.%${search}%`,
+    ];
+    if (byAction.length > 0) clauses.push(`id.in.(${byAction.join(",")})`);
+
+    query = query.or(clauses.join(","));
   }
   if (f.site_id) query = query.eq("site_id", Number(f.site_id));
   if (f.task_id) query = query.eq("task_id", Number(f.task_id));
@@ -119,6 +147,27 @@ export default async function IssuesPage({ searchParams }: PageProps<"/issues">)
 
   const issues = (data ?? []) as unknown as IssueRow[];
   const total = count ?? 0;
+
+  // 이 페이지에 뜬 이슈들의 처리 이력을 한 번에 가져온다.
+  // 20건 × 몇 줄이라 통째로 받아도 가볍고, 펼칠 때 기다림이 없다.
+  const actionsByIssue = new Map<number, ActionRow[]>();
+  if (issues.length > 0) {
+    const { data: actionData } = await supabase
+      .from("actions")
+      .select("id, issue_id, acted_at, content, result, actor:profiles(name)")
+      .in(
+        "issue_id",
+        issues.map((i) => i.id),
+      )
+      .order("acted_at", { ascending: true })
+      .order("id", { ascending: true });
+
+    for (const a of (actionData ?? []) as unknown as ActionRow[]) {
+      const list = actionsByIssue.get(a.issue_id);
+      if (list) list.push(a);
+      else actionsByIssue.set(a.issue_id, [a]);
+    }
+  }
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // 페이지 링크용 쿼리스트링 (page 제외)
@@ -161,7 +210,7 @@ export default async function IssuesPage({ searchParams }: PageProps<"/issues">)
                   id="q"
                   name="q"
                   defaultValue={f.q}
-                  placeholder="제목·증상·이슈번호"
+                  placeholder="제목·증상·조치내용·이슈번호"
                 />
               </div>
 
@@ -334,6 +383,33 @@ export default async function IssuesPage({ searchParams }: PageProps<"/issues">)
                                 ))}
                             </div>
                           )}
+                          {(() => {
+                            const history = actionsByIssue.get(i.id);
+                            if (!history || history.length === 0) return null;
+                            const last = history[history.length - 1];
+                            return (
+                              /* details 로 펼친다. 자바스크립트 없이 동작하고 키보드로도 열린다 */
+                              <details className="hist">
+                                <summary>
+                                  <ActionResultBadge result={last.result} />
+                                  <span>이력 {history.length}건</span>
+                                  <span className="dim">· {formatDate(last.acted_at)}</span>
+                                </summary>
+                                <ul className="hist-list">
+                                  {history.map((a) => (
+                                    <li key={a.id}>
+                                      <div className="h-head">
+                                        <span className="mono">{formatDate(a.acted_at)}</span>
+                                        <ActionResultBadge result={a.result} />
+                                        <span className="dim">{a.actor?.name ?? "-"}</span>
+                                      </div>
+                                      <div className="h-body">{a.content}</div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            );
+                          })()}
                         </td>
                         <td className="nowrap small">{i.type?.name ?? "-"}</td>
                         <td className="nowrap">
