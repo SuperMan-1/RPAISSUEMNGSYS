@@ -558,7 +558,9 @@ export async function resetUserPassword(
   const userId = str(formData, "user_id");
   const password = str(formData, "password");
   if (!userId) return { error: "사용자를 찾을 수 없습니다." };
-  if (password.length < 8) return { error: "비밀번호는 8자 이상이어야 합니다." };
+
+  const weak = validatePassword(password);
+  if (weak) return { error: weak };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });

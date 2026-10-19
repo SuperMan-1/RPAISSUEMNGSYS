@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
-import { USERNAME_HELP, USERNAME_PATTERN, PASSWORD_MIN } from "@/lib/account";
+import { PASSWORD_HELP, PASSWORD_MIN, USERNAME_HELP, USERNAME_PATTERN } from "@/lib/account";
 
 import { checkUsername, signUp, type SignupState } from "./actions";
 
@@ -97,7 +97,7 @@ export function SignupForm() {
             minLength={PASSWORD_MIN}
             required
           />
-          <div className="help">{PASSWORD_MIN}자 이상</div>
+          <div className="help">{PASSWORD_HELP}</div>
         </div>
         <div>
           <label className="lbl" htmlFor="password_confirm">

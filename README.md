@@ -35,6 +35,10 @@
 sign up** 을 꺼 둔다. 가입은 이 앱의 `/signup` 화면이 서버에서 처리하므로 Supabase 쪽
 공개 가입은 열어 둘 이유가 없다.
 
+같은 화면의 **Password** 영역에서 최소 길이를 8로, **Password Requirements** 를
+`Lowercase, uppercase letters, digits and symbols` 로 맞춰 두면 앱 밖에서 비밀번호가
+바뀌는 경로에도 같은 기준이 걸린다. 앱 안의 검사는 `lib/account.ts` 가 한다.
+
 ### 3. 환경변수
 
 ```bash
@@ -89,6 +93,9 @@ http://localhost:3000 에서 확인한다.
   (`app/login/actions.ts`). 이 조회에 `SUPABASE_SECRET_KEY` 가 쓰인다.
 - **회원가입**(`/signup`) 은 기본정보(아이디·이름·이메일·비밀번호)와
   추가정보(회사·부서·휴대전화)를 받는다. 추가정보는 비워도 된다.
+- **비밀번호는 8자 이상이고 영문·숫자·특수문자를 모두 포함해야 한다.** 특수문자는
+  영문·숫자가 아닌 모든 글자로 본다. 가입, 관리자의 계정 발급, 비밀번호 재설정이
+  모두 `lib/account.ts` 의 `validatePassword` 하나를 쓴다.
 - 한 이메일로는 계정 하나만 만들 수 있다. 대소문자와 `hong+1@x.com` 식 꼬리표를
   떼어낸 값(`profiles.email_norm`)에 유니크 인덱스가 걸려 있다.
 - 가입하면 **승인 대기**(`is_active = false`) 로 들어가고, 관리자가
@@ -132,3 +139,5 @@ _archive_python/          초기 FastAPI 구현 (참고용 보관)
 - 유사이슈 검색은 DB 함수 `search_similar_issues` 안에 있다. 가중치를 바꾸려면 그 함수를 고친다.
 - 아이디 규칙을 바꿀 때도 두 곳을 같이 고친다. `lib/account.ts` 의 `USERNAME_PATTERN` 과
   `profiles_username_format` check 제약.
+- 비밀번호 규칙은 `lib/account.ts` 의 `validatePassword` 한 곳에 있다. 화면에 뜨는
+  안내 문구도 같은 파일의 `PASSWORD_HELP` 를 쓰므로 규칙과 안내가 어긋나지 않는다.

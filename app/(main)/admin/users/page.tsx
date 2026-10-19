@@ -1,6 +1,6 @@
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { StateForm } from "@/components/StateForm";
-import { USERNAME_HELP, USERNAME_PATTERN } from "@/lib/account";
+import { PASSWORD_HELP, USERNAME_HELP, USERNAME_PATTERN } from "@/lib/account";
 import { requireAdmin } from "@/lib/auth";
 import { USER_ROLES } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -255,7 +255,7 @@ export default async function AdminUsersPage() {
                     required
                     autoComplete="off"
                   />
-                  <div className="help">8자 이상. 전달한 뒤 본인이 바꾸게 하세요.</div>
+                  <div className="help">{PASSWORD_HELP}. 전달한 뒤 본인이 바꾸게 하세요.</div>
                 </div>
                 <div>
                   <label className="lbl" htmlFor="role">
@@ -342,7 +342,7 @@ export default async function AdminUsersPage() {
                     required
                     autoComplete="off"
                   />
-                  <div className="help">8자 이상</div>
+                  <div className="help">{PASSWORD_HELP}</div>
                 </div>
               </div>
             </StateForm>

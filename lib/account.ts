@@ -72,10 +72,35 @@ export function validatePhone(phone: string | null): string | null {
 
 export const PASSWORD_MIN = 8;
 
+/** Supabase(gotrue) 가 bcrypt 로 해시한다. 72바이트를 넘으면 뒤가 잘린다 */
+export const PASSWORD_MAX = 72;
+
+export const PASSWORD_HELP = "8자 이상, 영문·숫자·특수문자를 모두 포함";
+
+/**
+ * 비밀번호 검사.
+ *
+ * 길이만 보지 않고 영문·숫자·특수문자가 모두 들어갔는지 본다.
+ * 세 가지를 섞게 하는 것이 길이를 늘리는 것보다 추측에 더 잘 버틴다.
+ * 특수문자는 영문·숫자가 아닌 모든 글자로 본다 (!@#$ 뿐 아니라 -, _, 공백도 된다).
+ */
 export function validatePassword(password: string, confirm?: string): string | null {
   if (password.length < PASSWORD_MIN) {
     return `비밀번호는 ${PASSWORD_MIN}자 이상이어야 합니다.`;
   }
+  if (password.length > PASSWORD_MAX) {
+    return `비밀번호는 ${PASSWORD_MAX}자까지 쓸 수 있습니다.`;
+  }
+
+  const missing: string[] = [];
+  if (!/[A-Za-z]/.test(password)) missing.push("영문");
+  if (!/[0-9]/.test(password)) missing.push("숫자");
+  if (!/[^A-Za-z0-9]/.test(password)) missing.push("특수문자");
+
+  if (missing.length > 0) {
+    return `비밀번호는 영문·숫자·특수문자를 모두 포함해야 합니다. (빠진 것: ${missing.join("·")})`;
+  }
+
   if (confirm !== undefined && password !== confirm) {
     return "비밀번호가 서로 다릅니다.";
   }
