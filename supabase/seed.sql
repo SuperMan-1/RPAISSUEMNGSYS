@@ -68,11 +68,16 @@ where t.name = '월간 정기점검 (공통)'
 -- =============================================================================
 -- 첫 관리자 지정
 --
--- Supabase 대시보드 → Authentication → Users 에서 계정을 먼저 만든 다음,
--- 아래 이메일을 그 계정으로 바꿔 실행하면 관리자 권한이 부여된다.
+-- 가입 화면(/signup)에서 먼저 신청하거나, Supabase 대시보드 →
+-- Authentication → Users 에서 계정을 만든 다음, 아래 이메일을 그 계정으로
+-- 바꿔 실행하면 관리자 권한이 부여된다.
+--
+-- 0002_signup.sql 을 적용한 뒤로는 새 계정이 모두 '승인 대기'(is_active = false)
+-- 상태로 만들어진다. 첫 관리자는 승인해 줄 사람이 없으므로 여기서 같이 열어 준다.
+-- 아이디(username)는 이메일 앞부분으로 자동으로 채워지며, 원하면 같이 바꾼다.
 -- =============================================================================
 --
 -- update public.profiles p
--- set role = 'ADMIN', name = '장도일'
+-- set role = 'ADMIN', name = '장도일', is_active = true, username = 'dojang'
 -- from auth.users u
 -- where u.id = p.id and u.email = 'admin@example.com';

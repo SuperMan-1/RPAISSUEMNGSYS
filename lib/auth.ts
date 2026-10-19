@@ -33,9 +33,19 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
 /** 로그인이 필요한 화면에서 쓴다. 미로그인이면 /login 으로 보낸다. */
 export async function requireProfile(): Promise<Profile> {
   if (!isSupabaseConfigured()) redirect("/setup");
+
   const profile = await getProfile();
-  if (!profile) redirect("/login");
-  return profile;
+  if (profile) return profile;
+
+  // 세션은 살아 있는데 프로필이 없거나 '사용'이 꺼진 계정.
+  // 바로 /login 으로 보내면 proxy 가 로그인된 사용자로 보고 되돌려 보내 무한 루프가 된다.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/logout?reason=inactive");
+
+  redirect("/login");
 }
 
 /** 관리자만 쓸 수 있는 화면에서 쓴다. */

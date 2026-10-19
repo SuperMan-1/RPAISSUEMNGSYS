@@ -27,14 +27,26 @@ export type Database = {
       profiles: {
         Row: {
           id: string;
+          username: string;
           name: string;
+          email: string | null;
+          /** email 에서 DB 가 계산한다. 쓰기 불가 */
+          email_norm: string | null;
+          company: string | null;
+          dept: string | null;
+          phone: string | null;
           role: UserRole;
           is_active: boolean;
           created_at: Timestamp;
         };
         Insert: {
           id: string;
+          username?: string;
           name?: string;
+          email?: string | null;
+          company?: string | null;
+          dept?: string | null;
+          phone?: string | null;
           role?: UserRole;
           is_active?: boolean;
           created_at?: Timestamp;
@@ -329,6 +341,9 @@ export type Database = {
       next_issue_no: { Args: { p_when?: string }; Returns: string };
       is_admin: { Args: Record<never, never>; Returns: boolean };
       is_active_user: { Args: Record<never, never>; Returns: boolean };
+      /** 가입 화면의 아이디 중복 확인. 쓰였는지 여부만 돌려준다 */
+      username_taken: { Args: { p_username: string }; Returns: boolean };
+      generate_username: { Args: { p_email: string }; Returns: string };
     };
 
     Enums: Record<never, never>;

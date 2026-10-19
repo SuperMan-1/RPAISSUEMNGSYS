@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -21,23 +22,24 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, notice }: { next: string; notice?: string }) {
   const [state, formAction] = useActionState(signIn, initialState);
 
   return (
     <form action={formAction}>
+      {notice && !state.error && <div className="flash flash-ok">{notice}</div>}
       {state.error && <div className="flash flash-error">{state.error}</div>}
 
       <input type="hidden" name="next" value={next} />
 
       <div className="form-row">
-        <label className="lbl" htmlFor="email">
-          이메일
+        <label className="lbl" htmlFor="username">
+          아이디
         </label>
         <input
-          type="email"
-          id="email"
-          name="email"
+          type="text"
+          id="username"
+          name="username"
           autoComplete="username"
           autoFocus
           required
@@ -58,6 +60,10 @@ export function LoginForm({ next }: { next: string }) {
       </div>
 
       <SubmitButton />
+
+      <p className="small dim" style={{ textAlign: "center", marginTop: 14, marginBottom: 0 }}>
+        계정이 없으신가요? <Link href="/signup">회원가입</Link>
+      </p>
     </form>
   );
 }

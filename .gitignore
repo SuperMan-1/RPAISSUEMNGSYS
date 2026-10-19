@@ -17,6 +17,7 @@ node_modules/
 out/
 build/
 .vercel/
+tsconfig.tsbuildinfo
 
 # 환경변수
 .env

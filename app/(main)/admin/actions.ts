@@ -4,6 +4,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import type { FormState } from "@/components/StateForm";
+import {
+  emailKey,
+  normalizeEmail,
+  normalizePhone,
+  normalizeUsername,
+  validateEmail,
+  validatePassword,
+  validatePhone,
+  validateUsername,
+} from "@/lib/account";
 import { requireAdmin } from "@/lib/auth";
 import type { UserRole } from "@/lib/database.types";
 import { hasSupabaseSecretKey } from "@/lib/supabase/env";
@@ -399,22 +409,42 @@ export async function createUser(_prev: FormState, formData: FormData): Promise<
     };
   }
 
-  const email = str(formData, "email");
+  const username = normalizeUsername(str(formData, "username"));
+  const email = normalizeEmail(str(formData, "email"));
   const name = str(formData, "name");
   const password = str(formData, "password");
   const role: UserRole = str(formData, "role") === "ADMIN" ? "ADMIN" : "USER";
+  const company = str(formData, "company") || null;
+  const dept = str(formData, "dept") || null;
+  const phone = normalizePhone(str(formData, "phone"));
 
-  if (!email) return { error: "이메일을 입력하세요." };
-  if (!name) return { error: "이름을 입력하세요." };
-  if (password.length < 8) return { error: "비밀번호는 8자 이상이어야 합니다." };
+  const problem =
+    validateUsername(username) ??
+    (!name ? "이름을 입력하세요." : null) ??
+    validateEmail(email) ??
+    validatePassword(password) ??
+    validatePhone(phone);
+
+  if (problem) return { error: problem };
 
   const admin = createAdminClient();
+
+  const [{ count: usernameTaken }, { count: emailTaken }] = await Promise.all([
+    admin.from("profiles").select("id", { count: "exact", head: true }).eq("username", username),
+    admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("email_norm", emailKey(email)),
+  ]);
+
+  if (usernameTaken) return { error: "이미 쓰고 있는 아이디입니다." };
+  if (emailTaken) return { error: "이미 등록된 이메일입니다." };
 
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true, // 사내 계정이라 메일 인증 절차를 두지 않는다
-    user_metadata: { name, role },
+    user_metadata: { name, username, company, dept, phone },
   });
 
   if (error) {
@@ -424,13 +454,68 @@ export async function createUser(_prev: FormState, formData: FormData): Promise<
     return { error: message };
   }
 
-  // 트리거가 프로필을 만들지만, 이름·역할이 확실히 들어가도록 한 번 더 맞춘다
+  // 트리거는 모든 계정을 USER·미사용으로 만든다 (가입 화면에서 스스로
+  // 관리자가 되는 것을 막기 위해서다). 관리자가 발급한 계정은 여기서 바로 열어 준다.
   if (data.user) {
-    await admin.from("profiles").update({ name, role }).eq("id", data.user.id);
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({ username, name, email, company, dept, phone, role, is_active: true })
+      .eq("id", data.user.id);
+
+    if (profileError) {
+      await admin.auth.admin.deleteUser(data.user.id);
+      return { error: friendly(profileError, "계정 생성에 실패했습니다.") };
+    }
   }
 
   revalidatePath("/admin/users");
   redirect("/admin/users");
+}
+
+/** 가입 신청 승인 — 사용 여부만 켠다 */
+export async function approveUser(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const userId = str(formData, "user_id");
+  if (!userId) throw new Error("사용자를 찾을 수 없습니다.");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ is_active: true })
+    .eq("id", userId);
+
+  if (error) throw new Error(friendly(error, "승인에 실패했습니다."));
+
+  revalidatePath("/admin/users");
+}
+
+/** 가입 신청 거절 — 계정을 통째로 지운다. 아직 남긴 글이 없으므로 지워도 된다 */
+export async function rejectUser(formData: FormData): Promise<void> {
+  await requireAdmin();
+
+  if (!hasSupabaseSecretKey()) {
+    throw new Error("SUPABASE_SECRET_KEY 가 없어 계정을 지울 수 없습니다.");
+  }
+
+  const userId = str(formData, "user_id");
+  if (!userId) throw new Error("사용자를 찾을 수 없습니다.");
+
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("is_active")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!target) throw new Error("사용자를 찾을 수 없습니다.");
+  if (target.is_active) throw new Error("이미 승인된 계정은 거절할 수 없습니다.");
+
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw new Error(`거절에 실패했습니다. (${error.message})`);
+
+  revalidatePath("/admin/users");
 }
 
 export async function updateUser(formData: FormData): Promise<void> {
