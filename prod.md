@@ -70,6 +70,9 @@ Python 구현물은 `_archive_python/` 에 보관되어 있으며, 데이터 모
   - 기본정보: 아이디(영문으로 시작하는 영문·숫자 4~20자, 중복 불가) / 이름 / 이메일 / 비밀번호
 - **비밀번호**: 8자 이상, 영문·숫자·특수문자를 모두 포함. 가입·계정 발급·재설정에
   같은 규칙이 걸린다.
+- **비밀번호 분실**: 아이디와 이메일을 확인한 뒤 등록된 이메일로 임시비밀번호를 보낸다.
+  임시비밀번호는 24시간만 유효하고, 그것으로 로그인하면 새 비밀번호를 정하기 전까지
+  다른 화면을 쓸 수 없다.
   - 추가정보: 회사 / 부서 / 휴대전화 (선택)
 - **한 이메일로는 계정 하나만** 만들 수 있다. 대소문자와 `hong+1@x.com` 식 꼬리표를
   떼어낸 값으로 비교한다.
@@ -104,7 +107,8 @@ Python 구현물은 `_archive_python/` 에 보관되어 있으며, 데이터 모
 `id, name(고유), is_active, sort_order` — 관리 화면에서 추가·수정 가능
 
 **profiles (사용자 프로필)**
-`id(auth.users 참조), username(고유), name, email(고유), company, dept, phone, role, is_active`
+`id(auth.users 참조), username(고유), name, email(고유), company, dept, phone, role, is_active,
+must_change_password, password_reset_at`
 
 > `username` 이 로그인 아이디다. `email_norm` 은 중복 판정용으로 `email` 에서
 > DB 가 자동 계산하는 컬럼이며, 여기에 유니크 인덱스가 걸려 있다.
@@ -299,6 +303,8 @@ created_at, updated_at
 |---|---|
 | `/login` | 로그인 (아이디 + 비밀번호) |
 | `/signup` | 회원가입 (기본정보 + 추가정보) |
+| `/forgot` | 비밀번호 찾기 (임시비밀번호 발송) |
+| `/password/new` | 새 비밀번호 설정 (임시비밀번호로 로그인한 경우) |
 | `/` | 대시보드 |
 | `/issues` | 이슈 목록 (필터·검색) |
 | `/issues/new` | 이슈 등록 (+ 유사이슈 패널) |

@@ -29,7 +29,8 @@
 
 1. `supabase/migrations/0001_init.sql` — 테이블, 인덱스, RLS 정책, 유사이슈 검색 함수, Storage 버킷
 2. `supabase/migrations/0002_signup.sql` — 회원가입(아이디·회사·부서·휴대전화)과 가입 승인
-3. `supabase/seed.sql` — 이슈 유형 4개, 공통 점검 템플릿
+3. `supabase/migrations/0003_password_reset.sql` — 비밀번호 분실(임시비밀번호·강제 변경)
+4. `supabase/seed.sql` — 이슈 유형 4개, 공통 점검 템플릿
 
 대시보드 → **Authentication → Sign In / Providers → Email** 에서 **Allow new users to
 sign up** 을 꺼 둔다. 가입은 이 앱의 `/signup` 화면이 서버에서 처리하므로 Supabase 쪽
@@ -52,6 +53,8 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | 프로젝트 주소 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 공개용 키 (`sb_publishable_…`). 브라우저로 전달되며 권한은 RLS가 판정한다 |
 | `SUPABASE_SECRET_KEY` | 비밀 키 (`sb_secret_…`). 서버 전용, 절대 공개 금지. 비워도 계정 생성 외 모든 기능이 동작한다 |
+| `SMTP_*` | 사내 메일 서버. 비밀번호 분실 시 임시비밀번호를 보내는 데만 쓴다. 비우면 비밀번호 찾기 화면이 안내로 바뀐다. 필수는 `SMTP_HOST` 와 `SMTP_FROM` 둘뿐이다 |
+| `NEXT_PUBLIC_SITE_URL` | 메일 본문에 넣을 사이트 주소. 비우면 요청 헤더에서 알아낸다 |
 
 > Supabase가 `anon` / `service_role` 키를 publishable / secret 으로 바꾸는 중이다.
 > 예전 키밖에 없는 프로젝트라면 `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
@@ -105,16 +108,55 @@ http://localhost:3000 에서 확인한다.
   만든다. 권한은 서버에서 secret 키로만 올린다. 그렇게 하지 않으면 가입하면서
   user_metadata 에 `role: ADMIN` 을 실어 보내 스스로 관리자가 될 수 있다.
 
+### 비밀번호를 잊었을 때
+
+1. 로그인 화면의 **비밀번호를 잊으셨나요?** → `/forgot`
+2. 아이디와 이메일이 **둘 다** 맞아야 한다. 하나만 아는 사람에게는 아무것도 주지 않는다.
+   맞지 않아도 "보냈습니다" 라고만 답한다 — 어떤 아이디가 있는지 떠볼 수 없게 하기 위해서다.
+3. 임시비밀번호를 만들어 **메일을 먼저 보내고**, 성공한 뒤에 비밀번호를 바꾼다.
+   순서를 바꾸면 메일이 실패했을 때 본인도 모르는 사이에 로그인할 수 없게 된다.
+4. 임시비밀번호는 **24시간**만 유효하고, 재발급은 **3분**에 한 번으로 제한한다
+   (`lib/temp-password.ts`).
+5. 임시비밀번호로 로그인하면 `must_change_password` 가 켜져 있어 `requireProfile()` 이
+   모든 화면을 막고 `/password/new` 로 보낸다. 새 비밀번호를 정해야 풀린다.
+
+#### 비밀번호가 새지 않도록 해 둔 것
+
+- `lib/mail.ts` 는 `import "server-only"` 로 막혀 있다. 클라이언트 컴포넌트가 실수로
+  불러가면 빌드가 깨진다. SMTP 계정이 브라우저로 나갈 길이 없다.
+- 임시비밀번호는 **메일로만** 나간다. 화면으로 돌려주지 않고, DB 에도 남기지 않는다
+  (Supabase 가 bcrypt 해시만 보관한다). 로그에도 찍지 않는다 — 발송 실패 시
+  오류 메시지만 남긴다.
+- **STARTTLS 를 기본으로 강제한다**(`SMTP_REQUIRE_TLS`). 끄면 서버가 TLS 를 알리지
+  않을 때 nodemailer 가 조용히 평문으로 보내, SMTP 계정과 임시비밀번호가 사내망에
+  그대로 흐른다.
+- 새 비밀번호를 정하면 **현재 세션만 남기고 나머지 세션을 끊는다**. 임시비밀번호가
+  메일함에 있던 동안 남이 먼저 로그인했더라도 그 세션이 살아남지 못한다.
+- 남는 위험은 하나다. **임시비밀번호가 메일함에 평문으로 남는다.** 임시비밀번호
+  방식의 본질적인 약점이라 없앨 수 없고, 24시간 유효기간과 로그인 즉시 강제 변경으로
+  창을 좁혀 놓았다. 더 줄이려면 임시비밀번호 대신 일회용 재설정 링크로 바꿔야 한다.
+- 관리자가 발급하는 초기 비밀번호 입력란은 일부러 가리지 않는다(`type="text"`).
+  관리자가 읽어서 본인에게 전달해야 하기 때문이다. 옆에서 화면이 보이는 자리라면
+  주의가 필요하다.
+
+> `must_change_password` 는 본인이 끌 수 없다. `profiles_guard_columns` 트리거가
+> 브라우저 세션(`authenticated` 롤)에서 들어오는 수정을 되돌린다. 비밀번호를 실제로
+> 바꾼 뒤 서버가 secret 키로만 내린다. 역할·사용여부·아이디·이메일도 같은 트리거가 지킨다.
+
 ## 폴더 구조
 
 ```
 app/
   login/                  로그인 (아이디 + 비밀번호)
   signup/                 회원가입
+  forgot/                 비밀번호 찾기 (임시비밀번호 발송)
+  password/new/           임시비밀번호로 들어온 사람의 새 비밀번호 설정
   logout/                 세션을 끊고 로그인 화면으로 (중지된 계정 처리)
   (main)/                 로그인해야 들어가는 화면
 lib/
-  account.ts              아이디·이메일·휴대전화 검사와 정규화
+  account.ts              아이디·이메일·비밀번호·휴대전화 검사와 정규화
+  mail.ts                 사내 SMTP 발송 (서버 전용)
+  temp-password.ts        임시비밀번호 생성과 유효기간 (서버 전용)
   constants.ts            코드값과 표시명 (DB check 제약과 일치해야 함)
   database.types.ts       Supabase 스키마 타입
   supabase/
@@ -126,6 +168,7 @@ proxy.ts                  요청마다 세션 갱신 (Next 16의 middleware)
 supabase/
   migrations/0001_init.sql
   migrations/0002_signup.sql
+  migrations/0003_password_reset.sql
   seed.sql
 prod.md                   제품 정의서
 _archive_python/          초기 FastAPI 구현 (참고용 보관)

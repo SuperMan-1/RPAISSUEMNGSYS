@@ -61,7 +61,10 @@ export function LoginForm({ next, notice }: { next: string; notice?: string }) {
 
       <SubmitButton />
 
-      <p className="small dim" style={{ textAlign: "center", marginTop: 14, marginBottom: 0 }}>
+      <p className="small dim" style={{ textAlign: "center", marginTop: 14, marginBottom: 4 }}>
+        <Link href="/forgot">비밀번호를 잊으셨나요?</Link>
+      </p>
+      <p className="small dim" style={{ textAlign: "center", margin: 0 }}>
         계정이 없으신가요? <Link href="/signup">회원가입</Link>
       </p>
     </form>

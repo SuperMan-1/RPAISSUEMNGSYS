@@ -9,7 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getSupabasePublishableKey, getSupabaseUrl, isSupabaseConfigured } from "./env";
 
 /** 로그인 없이 열어두는 경로 */
-const PUBLIC_PATHS = ["/login", "/signup", "/logout", "/auth"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot", "/logout", "/auth"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (user && ["/login", "/signup", "/forgot"].includes(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

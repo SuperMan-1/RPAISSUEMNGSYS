@@ -37,6 +37,9 @@ export type Database = {
           phone: string | null;
           role: UserRole;
           is_active: boolean;
+          /** 임시비밀번호 상태. 새 비밀번호를 정하기 전까지 다른 화면을 쓸 수 없다 */
+          must_change_password: boolean;
+          password_reset_at: Timestamp | null;
           created_at: Timestamp;
         };
         Insert: {
@@ -49,6 +52,8 @@ export type Database = {
           phone?: string | null;
           role?: UserRole;
           is_active?: boolean;
+          must_change_password?: boolean;
+          password_reset_at?: Timestamp | null;
           created_at?: Timestamp;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

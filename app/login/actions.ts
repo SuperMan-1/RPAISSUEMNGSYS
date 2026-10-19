@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { normalizeUsername } from "@/lib/account";
 import { hasSupabaseSecretKey } from "@/lib/supabase/env";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { isTemporaryPasswordAlive, TEMP_PASSWORD_HOURS } from "@/lib/temp-password";
 
 export type LoginState = { error: string | null };
 
@@ -76,7 +77,7 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
   // 비밀번호를 맞힌 뒤에 검사해야 계정 상태가 남에게 새지 않는다.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_active")
+    .select("is_active, must_change_password, password_reset_at")
     .eq("id", data.user.id)
     .maybeSingle();
 
@@ -85,6 +86,21 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
     return {
       error: "아직 승인되지 않은 계정입니다. 관리자가 승인하면 로그인할 수 있습니다.",
     };
+  }
+
+  // 임시비밀번호는 유효기간이 지나면 받지 않는다.
+  // 메일함에 남은 옛 임시비밀번호가 계속 열쇠로 남으면 안 된다.
+  if (profile.must_change_password && !isTemporaryPasswordAlive(profile.password_reset_at)) {
+    await supabase.auth.signOut();
+    return {
+      error: `임시비밀번호는 발급 후 ${TEMP_PASSWORD_HOURS}시간까지만 쓸 수 있습니다. 비밀번호 찾기로 다시 받으세요.`,
+    };
+  }
+
+  // 임시비밀번호로 들어왔으면 새 비밀번호부터 정하게 한다
+  if (profile.must_change_password) {
+    revalidatePath("/", "layout");
+    redirect("/password/new");
   }
 
   revalidatePath("/", "layout");

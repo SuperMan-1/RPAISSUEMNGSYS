@@ -35,7 +35,12 @@ export async function requireProfile(): Promise<Profile> {
   if (!isSupabaseConfigured()) redirect("/setup");
 
   const profile = await getProfile();
-  if (profile) return profile;
+  if (profile) {
+    // 임시비밀번호로 들어온 사람은 새 비밀번호를 정하기 전까지 아무 화면도 열 수 없다.
+    // 화면마다 검사하지 않도록 여기 한 곳에서 막는다.
+    if (profile.must_change_password) redirect("/password/new");
+    return profile;
+  }
 
   // 세션은 살아 있는데 프로필이 없거나 '사용'이 꺼진 계정.
   // 바로 /login 으로 보내면 proxy 가 로그인된 사용자로 보고 되돌려 보내 무한 루프가 된다.
