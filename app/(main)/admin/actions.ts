@@ -281,6 +281,36 @@ export async function createTemplate(
     return { error: friendly(error ?? { message: "알 수 없는 오류" }, "템플릿 등록에 실패했습니다.") };
   }
 
+  // 기존 템플릿을 고르면 그 점검 항목을 그대로 복사해 온다.
+  // 비슷한 점검표를 매번 처음부터 적는 수고를 덜기 위해서다.
+  // 항목만 가져오고 이름·사이트·설명은 새로 입력한 값을 쓴다.
+  const copyFrom = id(formData, "copy_from");
+  if (copyFrom) {
+    const { data: sourceItems } = await supabase
+      .from("inspection_items")
+      .select("seq, content, note")
+      .eq("template_id", copyFrom)
+      .order("seq");
+
+    if (sourceItems && sourceItems.length > 0) {
+      const { error: copyError } = await supabase.from("inspection_items").insert(
+        sourceItems.map((i) => ({
+          template_id: data.id,
+          seq: i.seq,
+          content: i.content,
+          note: i.note,
+        })),
+      );
+
+      // 항목 복사가 실패해도 템플릿은 이미 만들어졌다. 빈 템플릿으로 보내고
+      // 거기서 직접 추가하게 둔다. 만들다 만 상태로 되돌리는 쪽이 더 혼란스럽다.
+      if (copyError) {
+        revalidatePath("/admin/templates");
+        redirect(`/admin/templates/${data.id}?copyfailed=1`);
+      }
+    }
+  }
+
   revalidatePath("/admin/templates");
   redirect(`/admin/templates/${data.id}`);
 }

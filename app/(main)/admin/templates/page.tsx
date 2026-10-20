@@ -117,6 +117,23 @@ export default async function AdminTemplatesPage() {
                 </select>
                 <div className="help">특정 사이트 전용이면 선택하세요.</div>
               </div>
+              <div>
+                <label className="lbl" htmlFor="copy_from">
+                  기존 템플릿 복사
+                </label>
+                <select id="copy_from" name="copy_from" defaultValue="">
+                  <option value="">복사하지 않고 빈 템플릿으로</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.inspection_items[0]?.count ?? 0}개 항목)
+                    </option>
+                  ))}
+                </select>
+                <div className="help">
+                  고른 템플릿의 점검 항목을 그대로 가져옵니다. 이름과 사이트는 위에 적은
+                  값을 씁니다. 가져온 뒤 자유롭게 고치면 됩니다.
+                </div>
+              </div>
               <div className="full">
                 <label className="lbl" htmlFor="description">
                   설명

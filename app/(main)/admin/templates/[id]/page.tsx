@@ -57,12 +57,20 @@ export default async function AdminTemplateDetailPage({
   const runCount = runCountRes.count ?? 0;
 
   // 화면을 거치지 않고 삭제를 요청한 경우(버튼이 없어도 POST 는 보낼 수 있다)
-  const blockedRaw = (await searchParams).blocked;
-  const blocked = Array.isArray(blockedRaw) ? blockedRaw[0] : blockedRaw;
+  const sp = await searchParams;
+  const pick = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const blocked = pick(sp.blocked);
+  const copyFailed = pick(sp.copyfailed);
   const nextSeq = items.length > 0 ? Math.max(...items.map((i) => i.seq)) + 10 : 10;
 
   return (
     <>
+      {copyFailed && (
+        <div className="flash flash-warn">
+          템플릿은 만들어졌지만 점검 항목을 복사하지 못했습니다. 아래에서 직접 추가하세요.
+        </div>
+      )}
+
       {blocked && (
         <div className="flash flash-warn">
           이 템플릿으로 수행한 점검이 {blocked}건 있어 삭제하지 않았습니다. 지우면 과거
