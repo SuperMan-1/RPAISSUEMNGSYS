@@ -146,8 +146,13 @@ export async function saveResults(formData: FormData): Promise<void> {
       .eq("id", runId);
   }
 
-  revalidatePath(`/inspections/${runId}`);
   revalidatePath("/inspections");
+  revalidatePath("/");
+
+  // revalidatePath 만으로는 이 화면이 다시 그려지지 않아, 바뀐 내용이 보이지 않았다.
+  // 같은 주소로 다시 들어가 새로 그린다. 이슈 전환이 제대로 보였던 것도
+  // redirect 를 탔기 때문이다.
+  redirect(`/inspections/${runId}?saved=1`);
 }
 
 /**
@@ -220,8 +225,8 @@ export async function linkToIssue(formData: FormData): Promise<void> {
 
   if (error) throw new Error(`묶기에 실패했습니다. (${error.message})`);
 
-  revalidatePath(`/inspections/${runId}`);
   revalidatePath(`/issues/${issueId}`);
+  redirect(`/inspections/${runId}?linked=${issueId}`);
 }
 
 /**
@@ -247,7 +252,7 @@ export async function unlinkIssue(formData: FormData): Promise<void> {
 
   if (error) throw new Error(`연결 해제에 실패했습니다. (${error.message})`);
 
-  revalidatePath(`/inspections/${runId}`);
+  redirect(`/inspections/${runId}?unlinked=1`);
 }
 
 // ---------------------------------------------------------------------------

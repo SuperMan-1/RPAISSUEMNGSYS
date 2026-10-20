@@ -116,11 +116,23 @@ export default async function InspectionDetailPage({
     ).values(),
   ];
 
-  // 이슈 전환 직후 점검 화면으로 되돌아왔을 때의 안내
-  const createdParam = one((await searchParams).created);
-  const createdIssue = createdParam
-    ? (linkable.find((i) => i.id === Number(createdParam)) ?? null)
+  // 전환·묶기·저장을 마치고 이 화면으로 되돌아왔을 때의 안내
+  const sp = await searchParams;
+  const createdIssue = one(sp.created)
+    ? (linkable.find((i) => i.id === Number(one(sp.created))) ?? null)
     : null;
+  const linkedIssue = one(sp.linked)
+    ? (linkable.find((i) => i.id === Number(one(sp.linked))) ?? null)
+    : null;
+  const notice = createdIssue
+    ? null
+    : linkedIssue
+      ? `점검 항목을 이슈 ${linkedIssue.no} 에 묶었습니다.`
+      : one(sp.unlinked)
+        ? "이슈 연결을 해제했습니다. 이슈 자체는 그대로 있습니다."
+        : one(sp.saved)
+          ? "점검 내용을 저장했습니다."
+          : null;
   const canDelete = run.inspector_id === profile.id || profile.role === "ADMIN";
 
   // 첨부파일 — 비공개 버킷이라 보기용 서명 URL을 만든다 (10분)
@@ -161,6 +173,7 @@ export default async function InspectionDetailPage({
           등록했습니다. 남은 이상 항목이 있으면 이어서 전환하세요.
         </div>
       )}
+      {notice && <div className="flash flash-ok">{notice}</div>}
 
       <div className="page-head">
         <div>
