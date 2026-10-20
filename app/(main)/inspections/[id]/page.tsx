@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { StatusBadge } from "@/components/Badges";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { InspectionResultsForm, type ResultRow } from "@/components/InspectionResultsForm";
 import { RunAttachmentForm } from "@/components/RunAttachmentForm";
 import { requireProfile } from "@/lib/auth";
 import { ATTACHMENT_BUCKET, RUN_STATUSES } from "@/lib/constants";
-import type { CheckResult, RunStatus } from "@/lib/database.types";
+import type { CheckResult, IssueStatus, RunStatus } from "@/lib/database.types";
 import { formatDateTime, formatFileSize } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -115,6 +116,31 @@ export default async function InspectionDetailPage({
         .map((r) => [r.issue_id as number, { id: r.issue_id as number, no: r.issue!.no }]),
     ).values(),
   ];
+
+  // 이 점검에서 등록됐지만 지금은 어느 항목과도 연결돼 있지 않은 이슈.
+  // 여러 항목을 한 이슈로 합치고 나면 이렇게 뜬 이슈가 남는데, 알려주지 않으면
+  // 아무도 모르고 방치된다. 처리 이력 건수를 같이 보여줘야 지워도 되는지 판단할 수 있다.
+  const linkedIds = new Set(results.map((r) => r.issue_id).filter(Boolean));
+  const { data: fromRun } = await supabase
+    .from("issues")
+    .select("id, no, title, status")
+    .eq("source_run_id", runId)
+    .order("id");
+
+  const orphans = (fromRun ?? []).filter((i) => !linkedIds.has(i.id));
+  const orphanActionCount = new Map<number, number>();
+  if (orphans.length > 0) {
+    const { data: orphanActions } = await supabase
+      .from("actions")
+      .select("issue_id")
+      .in(
+        "issue_id",
+        orphans.map((i) => i.id),
+      );
+    for (const a of orphanActions ?? []) {
+      orphanActionCount.set(a.issue_id, (orphanActionCount.get(a.issue_id) ?? 0) + 1);
+    }
+  }
 
   // 전환·묶기·저장을 마치고 이 화면으로 되돌아왔을 때의 안내
   const sp = await searchParams;
@@ -243,6 +269,63 @@ export default async function InspectionDetailPage({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {orphans.length > 0 && (
+        <div className="card">
+          <div className="card-head">
+            <h2>연결이 끊긴 이슈 {orphans.length}건</h2>
+            <span className="hint">
+              이 점검에서 등록됐지만 지금은 어느 항목과도 연결돼 있지 않습니다
+            </span>
+          </div>
+          <div className="card-body tight">
+            <div className="table-scroll">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th className="nowrap" style={{ width: 110 }}>
+                      이슈번호
+                    </th>
+                    <th>제목</th>
+                    <th className="nowrap" style={{ width: 90 }}>
+                      상태
+                    </th>
+                    <th className="nowrap" style={{ width: 90 }}>
+                      처리 이력
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orphans.map((i) => {
+                    const count = orphanActionCount.get(i.id) ?? 0;
+                    return (
+                      <tr key={i.id}>
+                        <td className="nowrap mono small">
+                          <Link href={`/issues/${i.id}`}>{i.no}</Link>
+                        </td>
+                        <td className="small">
+                          <Link href={`/issues/${i.id}`}>{i.title}</Link>
+                        </td>
+                        <td className="nowrap">
+                          <StatusBadge status={i.status as IssueStatus} />
+                        </td>
+                        <td className="nowrap small">
+                          {count > 0 ? `${count}건` : <span className="dim">없음</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="small dim" style={{ padding: "8px 12px 12px" }}>
+              여러 항목을 한 이슈로 합치면 이렇게 남습니다. 처리 이력이 <strong>없음</strong>
+              이면 지워도 잃을 것이 없습니다. 이슈 화면에서 삭제하세요. 이력이 있다면 누군가
+              작업한 내용이 들어 있으니 확인하고 지우세요.
             </div>
           </div>
         </div>
