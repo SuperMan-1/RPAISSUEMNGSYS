@@ -142,17 +142,18 @@ export function InspectionResultsForm({
                         <Link className="btn btn-sm" href={`/issues/${r.issue_id}`}>
                           {r.issue_no} 보기
                         </Link>
-                        {!isDone && (
-                          <button
-                            type="submit"
-                            className="btn btn-sm"
-                            formAction={unlinkIssue}
-                            onClick={() => setFlags({ unlink: String(r.id) })}
-                            title="이슈와의 연결만 끊습니다. 이슈는 지워지지 않습니다"
-                          >
-                            연결 해제
-                          </button>
-                        )}
+                        {/* 완료된 점검에서도 보여준다. 이 폼은 완료 후에도 결과와
+                            코멘트를 고칠 수 있는데 연결 해제만 막으면 앞뒤가 안 맞고,
+                            잘못 묶은 것을 되돌릴 길이 없어진다 */}
+                        <button
+                          type="submit"
+                          className="btn btn-sm"
+                          formAction={unlinkIssue}
+                          onClick={() => setFlags({ unlink: String(r.id) })}
+                          title="이슈와의 연결만 끊습니다. 이슈는 지워지지 않습니다"
+                        >
+                          연결 해제
+                        </button>
                       </>
                     ) : (
                       current === "NG" && (
