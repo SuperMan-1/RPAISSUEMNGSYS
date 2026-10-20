@@ -321,6 +321,19 @@ export async function deleteTemplate(formData: FormData): Promise<void> {
   const templateId = id(formData, "template_id");
   if (!templateId) throw new Error("템플릿을 찾을 수 없습니다.");
 
+  // 이 템플릿으로 수행한 점검이 있으면 DB 가 삭제를 거부한다(외래키).
+  // 템플릿을 지우면 과거 점검 기록이 함께 사라지므로 일부러 막아 둔 것이다.
+  // 다만 예외를 던지면 운영 환경에서는 메시지가 가려져 "그냥 안 되는" 것처럼 보인다.
+  // 왜 안 되는지 화면에서 읽을 수 있도록 되돌려 보낸다.
+  const { count } = await supabase
+    .from("inspection_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("template_id", templateId);
+
+  if (count && count > 0) {
+    redirect(`/admin/templates/${templateId}?blocked=${count}`);
+  }
+
   const { error } = await supabase
     .from("inspection_templates")
     .delete()

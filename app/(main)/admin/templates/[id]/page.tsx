@@ -17,6 +17,7 @@ export const metadata = { title: "점검 템플릿 · RPA 이슈관리" };
 
 export default async function AdminTemplateDetailPage({
   params,
+  searchParams,
 }: PageProps<"/admin/templates/[id]">) {
   const supabase = await createClient();
 
@@ -54,10 +55,21 @@ export default async function AdminTemplateDetailPage({
   const items = itemsRes.data ?? [];
   const sites = sitesRes.data ?? [];
   const runCount = runCountRes.count ?? 0;
+
+  // 화면을 거치지 않고 삭제를 요청한 경우(버튼이 없어도 POST 는 보낼 수 있다)
+  const blockedRaw = (await searchParams).blocked;
+  const blocked = Array.isArray(blockedRaw) ? blockedRaw[0] : blockedRaw;
   const nextSeq = items.length > 0 ? Math.max(...items.map((i) => i.seq)) + 10 : 10;
 
   return (
     <>
+      {blocked && (
+        <div className="flash flash-warn">
+          이 템플릿으로 수행한 점검이 {blocked}건 있어 삭제하지 않았습니다. 지우면 과거
+          점검 기록도 함께 사라집니다. 더 쓰지 않으시려면 &lsquo;사용&rsquo;을 해제하세요.
+        </div>
+      )}
+
       <div className="btn-row" style={{ marginBottom: 12 }}>
         <Link className="btn btn-sm" href="/admin/templates">
           ← 템플릿 목록
@@ -74,15 +86,25 @@ export default async function AdminTemplateDetailPage({
             action={updateTemplate}
             submitLabel="저장"
             footer={
-              <form action={deleteTemplate} style={{ marginLeft: "auto" }}>
-                <input type="hidden" name="template_id" value={template.id} />
-                <ConfirmSubmit
-                  className="btn"
-                  message={`'${template.name}' 템플릿을 삭제합니다. 계속할까요?`}
-                >
-                  템플릿 삭제
-                </ConfirmSubmit>
-              </form>
+              runCount > 0 ? (
+                /* 점검 기록이 있으면 DB 가 삭제를 거부한다. 누를 수 있게 두고
+                   실패를 보여주느니, 왜 안 되는지를 먼저 알려준다 */
+                <span className="small dim" style={{ marginLeft: "auto", maxWidth: 420 }}>
+                  이 템플릿으로 수행한 점검이 {runCount}건 있어 삭제할 수 없습니다. 지우면
+                  과거 점검 기록도 함께 사라지기 때문입니다. 더 쓰지 않으시려면
+                  위의 <strong>사용 여부</strong> 를 끄세요. 새 점검에서 선택되지 않습니다.
+                </span>
+              ) : (
+                <form action={deleteTemplate} style={{ marginLeft: "auto" }}>
+                  <input type="hidden" name="template_id" value={template.id} />
+                  <ConfirmSubmit
+                    className="btn"
+                    message={`'${template.name}' 템플릿을 삭제합니다. 계속할까요?`}
+                  >
+                    템플릿 삭제
+                  </ConfirmSubmit>
+                </form>
+              )
             }
           >
             <input type="hidden" name="template_id" value={template.id} />
