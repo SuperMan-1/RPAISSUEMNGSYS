@@ -137,21 +137,39 @@ export async function saveResults(formData: FormData): Promise<void> {
   const complete = str(formData, "complete") === "1";
   const reopen = str(formData, "reopen") === "1";
 
+  revalidatePath("/inspections");
+  revalidatePath("/");
+
+  // revalidatePath 만으로는 화면이 다시 그려지지 않아, 셋 다 redirect 로 보낸다.
+  // 어느 버튼을 눌렀는지에 따라 가는 곳과 문구가 달라야 한다.
+  // 전에는 모두 ?saved=1 이라 완료했는지 저장만 했는지 구분할 수 없었다.
+
   if (complete) {
     await supabase.from("inspection_runs").update({ status: "DONE" }).eq("id", runId);
-  } else if (reopen) {
+
+    // 이상인데 아직 이슈로 등록되지 않은 항목을 센다.
+    // 점검을 끝냈는데 이상이 이슈로 남지 않으면 그 문제는 추적에서 사라진다.
+    // 막지는 않는다. 이슈로 만들 필요가 없는 이상도 있으니 알려만 준다.
+    const { data: ngRows } = await supabase
+      .from("inspection_results")
+      .select("issue_id")
+      .eq("run_id", runId)
+      .eq("result", "NG");
+
+    const ng = ngRows?.length ?? 0;
+    const pending = (ngRows ?? []).filter((r) => !r.issue_id).length;
+
+    redirect(`/inspections?completed=${runId}&ng=${ng}&pending=${pending}`);
+  }
+
+  if (reopen) {
     await supabase
       .from("inspection_runs")
       .update({ status: "IN_PROGRESS" })
       .eq("id", runId);
+    redirect(`/inspections/${runId}?reopened=1`);
   }
 
-  revalidatePath("/inspections");
-  revalidatePath("/");
-
-  // revalidatePath 만으로는 이 화면이 다시 그려지지 않아, 바뀐 내용이 보이지 않았다.
-  // 같은 주소로 다시 들어가 새로 그린다. 이슈 전환이 제대로 보였던 것도
-  // redirect 를 탔기 때문이다.
   redirect(`/inspections/${runId}?saved=1`);
 }
 

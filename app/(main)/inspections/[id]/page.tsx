@@ -156,9 +156,11 @@ export default async function InspectionDetailPage({
       ? `점검 항목을 이슈 ${linkedIssue.no} 에 묶었습니다.`
       : one(sp.unlinked)
         ? "이슈 연결을 해제했습니다. 이슈 자체는 그대로 있습니다."
-        : one(sp.saved)
-          ? "점검 내용을 저장했습니다."
-          : null;
+        : one(sp.reopened)
+          ? "점검을 다시 열었습니다. 이어서 수정할 수 있습니다."
+          : one(sp.saved)
+            ? "점검 내용을 저장했습니다. 아직 완료 처리하지 않았습니다."
+            : null;
   const canDelete = run.inspector_id === profile.id || profile.role === "ADMIN";
 
   // 첨부파일 — 비공개 버킷이라 보기용 서명 URL을 만든다 (10분)

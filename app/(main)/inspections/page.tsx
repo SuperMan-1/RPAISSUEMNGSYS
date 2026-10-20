@@ -81,8 +81,35 @@ export default async function InspectionsPage({
     return `/inspections?${sp.toString()}`;
   };
 
+  // 점검을 완료하고 넘어온 경우. 이상인데 이슈로 등록하지 않은 항목이 있으면
+  // 여기서 짚어준다. 점검표에만 '이상'으로 남으면 아무도 다시 보지 않는다.
+  const completedId = one(params.completed);
+  const pendingNg = Number(one(params.pending)) || 0;
+  const totalNg = Number(one(params.ng)) || 0;
+
   return (
     <main className="page">
+      {completedId && (
+        <div className={pendingNg > 0 ? "flash flash-warn" : "flash flash-ok"}>
+          점검을 완료했습니다.
+          {pendingNg > 0 ? (
+            <>
+              {" "}
+              이상 {totalNg}건 가운데 <strong>{pendingNg}건이 아직 이슈로 등록되지
+              않았습니다.</strong> 이대로 두면 추적되지 않습니다.{" "}
+              <Link href={`/inspections/${completedId}`}>점검으로 돌아가 전환하기</Link>
+            </>
+          ) : (
+            <>
+              {totalNg > 0
+                ? ` 이상 ${totalNg}건은 모두 이슈로 등록돼 있습니다.`
+                : " 이상 항목은 없었습니다."}{" "}
+              <Link href={`/inspections/${completedId}`}>점검 보기</Link>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="page-head">
         <div>
           <h1>정기점검</h1>
