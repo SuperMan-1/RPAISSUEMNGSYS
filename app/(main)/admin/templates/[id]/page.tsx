@@ -95,15 +95,18 @@ export default async function AdminTemplateDetailPage({
                   위의 <strong>사용 여부</strong> 를 끄세요. 새 점검에서 선택되지 않습니다.
                 </span>
               ) : (
-                <form action={deleteTemplate} style={{ marginLeft: "auto" }}>
-                  <input type="hidden" name="template_id" value={template.id} />
+                /* form 안에 form 을 넣으면 브라우저가 안쪽을 버려서, 이 버튼이
+                   바깥 폼(저장)에 붙어 삭제 대신 저장이 실행된다.
+                   바깥 폼에 이미 template_id 가 있으니 formAction 만 바꿔 준다 */
+                <span style={{ marginLeft: "auto" }}>
                   <ConfirmSubmit
                     className="btn"
+                    formAction={deleteTemplate}
                     message={`'${template.name}' 템플릿을 삭제합니다. 계속할까요?`}
                   >
                     템플릿 삭제
                   </ConfirmSubmit>
-                </form>
+                </span>
               )
             }
           >

@@ -58,15 +58,17 @@ export default async function AdminSiteDetailPage({
             action={updateSite}
             submitLabel="저장"
             footer={
-              <form action={deleteSite} style={{ marginLeft: "auto" }}>
-                <input type="hidden" name="site_id" value={site.id} />
+              /* form 중첩은 브라우저가 안쪽을 버린다. 바깥 폼에 site_id 가
+                 이미 있으므로 formAction 으로 보낼 곳만 바꾼다 */
+              <span style={{ marginLeft: "auto" }}>
                 <ConfirmSubmit
                   className="btn"
+                  formAction={deleteSite}
                   message={`${site.name} 사이트를 삭제합니다. 계속할까요?`}
                 >
                   사이트 삭제
                 </ConfirmSubmit>
-              </form>
+              </span>
             }
           >
             <input type="hidden" name="site_id" value={site.id} />
