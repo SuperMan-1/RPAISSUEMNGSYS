@@ -58,6 +58,10 @@ export function InspectionResultsForm({
 
   const ngCount = rows.filter((r) => results[r.id] === "NG").length;
 
+  // 이상인데 아직 이슈로 등록되지 않은 항목. 점검을 끝낸 뒤에도 남아 있을 수 있어
+  // 화면에서 바로 보이게 한다. 완료 안내와 같은 기준이다.
+  const pendingNg = rows.filter((r) => results[r.id] === "NG" && !r.issue_id).length;
+
   return (
     <form action={saveResults}>
       <input type="hidden" name="run_id" value={runId} />
@@ -243,11 +247,17 @@ export function InspectionResultsForm({
               </button>
             )}
 
-            {ngCount > 0 && (
-              <span className="small dim">
-                이상 항목은 &lsquo;이슈로 전환&rsquo;으로 이슈를 만들어 두세요.
-              </span>
-            )}
+            {ngCount > 0 &&
+              (pendingNg > 0 ? (
+                <span className="small" style={{ color: "var(--warn)" }}>
+                  이상 {ngCount}건 가운데 <strong>{pendingNg}건이 아직 이슈로 등록되지
+                  않았습니다.</strong> &lsquo;이슈로 전환&rsquo;으로 만들어 두세요.
+                </span>
+              ) : (
+                <span className="small dim">
+                  이상 {ngCount}건은 모두 이슈로 등록돼 있습니다.
+                </span>
+              ))}
           </div>
         </div>
       </div>

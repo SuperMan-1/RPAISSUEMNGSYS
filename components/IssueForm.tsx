@@ -341,7 +341,18 @@ export function IssueForm({
           <button type="submit" className="btn btn-primary" disabled={pending}>
             {pending ? "저장 중…" : mode === "edit" ? "저장" : "등록"}
           </button>
-          <Link className="btn" href={issueId ? `/issues/${issueId}` : "/issues"}>
+          {/* 온 곳으로 돌려보낸다. 점검에서 전환하다 취소했는데 이슈 목록으로
+              떨어지면, 하던 점검을 직접 찾아 돌아가야 한다 */}
+          <Link
+            className="btn"
+            href={
+              source
+                ? `/inspections/${source.runId}`
+                : issueId
+                  ? `/issues/${issueId}`
+                  : "/issues"
+            }
+          >
             취소
           </Link>
         </div>
