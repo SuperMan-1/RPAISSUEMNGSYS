@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { saveAndConvert, saveResults } from "@/app/(main)/inspections/actions";
+import {
+  linkToIssue,
+  saveAndConvert,
+  saveResults,
+  unlinkIssue,
+} from "@/app/(main)/inspections/actions";
 import { CHECK_RESULTS } from "@/lib/constants";
 import type { CheckResult } from "@/lib/database.types";
 
@@ -23,11 +28,14 @@ export function InspectionResultsForm({
   isDone,
   note,
   rows,
+  linkable,
 }: {
   runId: number;
   isDone: boolean;
   note: string | null;
   rows: ResultRow[];
+  /** 이 점검에서 이미 등록한 이슈. 같은 원인의 다른 항목을 여기에 묶는다 */
+  linkable: { id: number; no: string }[];
 }) {
   const [results, setResults] = useState<Record<number, CheckResult>>(() =>
     Object.fromEntries(rows.map((r) => [r.id, r.result])),
@@ -37,11 +45,15 @@ export function InspectionResultsForm({
   const completeRef = useRef<HTMLInputElement>(null);
   const reopenRef = useRef<HTMLInputElement>(null);
   const convertRef = useRef<HTMLInputElement>(null);
+  const linkRef = useRef<HTMLInputElement>(null);
+  const unlinkRef = useRef<HTMLInputElement>(null);
 
-  function setFlags({ complete = "", reopen = "", convert = "" }) {
+  function setFlags({ complete = "", reopen = "", convert = "", link = "", unlink = "" }) {
     if (completeRef.current) completeRef.current.value = complete;
     if (reopenRef.current) reopenRef.current.value = reopen;
     if (convertRef.current) convertRef.current.value = convert;
+    if (linkRef.current) linkRef.current.value = link;
+    if (unlinkRef.current) unlinkRef.current.value = unlink;
   }
 
   const ngCount = rows.filter((r) => results[r.id] === "NG").length;
@@ -53,6 +65,8 @@ export function InspectionResultsForm({
       <input type="hidden" name="complete" ref={completeRef} defaultValue="" />
       <input type="hidden" name="reopen" ref={reopenRef} defaultValue="" />
       <input type="hidden" name="convert_result_id" ref={convertRef} defaultValue="" />
+      <input type="hidden" name="link_result_id" ref={linkRef} defaultValue="" />
+      <input type="hidden" name="unlink_result_id" ref={unlinkRef} defaultValue="" />
 
       <div className="card">
         <div className="card-head">
@@ -124,9 +138,22 @@ export function InspectionResultsForm({
                     />
 
                     {r.issue_id ? (
-                      <Link className="btn btn-sm" href={`/issues/${r.issue_id}`}>
-                        {r.issue_no} 보기
-                      </Link>
+                      <>
+                        <Link className="btn btn-sm" href={`/issues/${r.issue_id}`}>
+                          {r.issue_no} 보기
+                        </Link>
+                        {!isDone && (
+                          <button
+                            type="submit"
+                            className="btn btn-sm"
+                            formAction={unlinkIssue}
+                            onClick={() => setFlags({ unlink: String(r.id) })}
+                            title="이슈와의 연결만 끊습니다. 이슈는 지워지지 않습니다"
+                          >
+                            연결 해제
+                          </button>
+                        )}
+                      </>
                     ) : (
                       current === "NG" && (
                         <button
@@ -140,6 +167,35 @@ export function InspectionResultsForm({
                       )
                     )}
                   </div>
+
+                  {/* 같은 원인으로 여러 항목이 이상인 경우 새 이슈를 또 만들지 않고
+                      아까 만든 이슈에 묶는다. 위 줄에 같이 두면 코멘트 칸에 밀려
+                      오른쪽 끝으로 가 버려서 아무도 못 찾는다. 줄을 따로 뺀다 */}
+                  {current === "NG" && !r.issue_id && linkable.length > 0 && (
+                    <div className="link-row">
+                      <span>같은 원인이라면 이미 등록한 이슈에 묶으세요</span>
+                      <select
+                        name={`link_issue_${r.id}`}
+                        defaultValue=""
+                        aria-label="묶을 이슈 고르기"
+                      >
+                        <option value="">이슈 고르기…</option>
+                        {linkable.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.no}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="btn btn-sm"
+                        formAction={linkToIssue}
+                        onClick={() => setFlags({ link: String(r.id) })}
+                      >
+                        묶기
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}

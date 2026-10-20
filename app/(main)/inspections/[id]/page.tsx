@@ -40,8 +40,14 @@ export async function generateMetadata({ params }: PageProps<"/inspections/[id]"
   return { title: `점검 ${id} · RPA 이슈관리` };
 }
 
+function one(v: string | string[] | undefined): string {
+  if (Array.isArray(v)) return v[0] ?? "";
+  return v ?? "";
+}
+
 export default async function InspectionDetailPage({
   params,
+  searchParams,
 }: PageProps<"/inspections/[id]">) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -100,6 +106,21 @@ export default async function InspectionDetailPage({
 
   const ngCount = results.filter((r) => r.result === "NG").length;
   const linkedIssues = results.filter((r) => r.issue_id);
+
+  // 같은 원인의 다른 항목을 묶을 수 있도록, 이 점검에서 이미 등록한 이슈를 모은다
+  const linkable = [
+    ...new Map(
+      results
+        .filter((r) => r.issue_id && r.issue?.no)
+        .map((r) => [r.issue_id as number, { id: r.issue_id as number, no: r.issue!.no }]),
+    ).values(),
+  ];
+
+  // 이슈 전환 직후 점검 화면으로 되돌아왔을 때의 안내
+  const createdParam = one((await searchParams).created);
+  const createdIssue = createdParam
+    ? (linkable.find((i) => i.id === Number(createdParam)) ?? null)
+    : null;
   const canDelete = run.inspector_id === profile.id || profile.role === "ADMIN";
 
   // 첨부파일 — 비공개 버킷이라 보기용 서명 URL을 만든다 (10분)
@@ -134,6 +155,13 @@ export default async function InspectionDetailPage({
 
   return (
     <main className="page">
+      {createdIssue && (
+        <div className="flash flash-ok">
+          이슈 <Link href={`/issues/${createdIssue.id}`}>{createdIssue.no}</Link> 을(를)
+          등록했습니다. 남은 이상 항목이 있으면 이어서 전환하세요.
+        </div>
+      )}
+
       <div className="page-head">
         <div>
           <h1>{run.template?.name ?? "점검"}</h1>
@@ -212,6 +240,7 @@ export default async function InspectionDetailPage({
         isDone={run.status === "DONE"}
         note={run.note}
         rows={rows}
+        linkable={linkable}
       />
 
       <div className="card">

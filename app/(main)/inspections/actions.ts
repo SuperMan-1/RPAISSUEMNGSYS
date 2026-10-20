@@ -171,6 +171,85 @@ export async function saveAndConvert(formData: FormData): Promise<void> {
   redirect(`/issues/new?from_run=${runId}&from_result=${resultId}`);
 }
 
+/**
+ * 이상(NG) 항목을 이 점검에서 이미 등록한 이슈에 묶는다.
+ *
+ * 한 가지 원인으로 여러 항목이 동시에 이상인 경우가 있다. 네트워크가 끊겨
+ * 세 항목이 전부 실패했다면 이슈는 한 건이어야 맞다. 그럴 때 항목마다
+ * 같은 내용의 이슈를 새로 만들지 않고 기존 이슈를 가리키게 한다.
+ */
+export async function linkToIssue(formData: FormData): Promise<void> {
+  await requireProfile();
+
+  const runId = id(formData, "run_id");
+  const resultId = id(formData, "link_result_id");
+  if (!runId) throw new Error("점검을 찾을 수 없습니다.");
+  if (!resultId) throw new Error("묶을 점검 항목을 찾을 수 없습니다.");
+
+  const issueId = id(formData, `link_issue_${resultId}`);
+  if (!issueId) throw new Error("묶을 이슈를 고르세요.");
+
+  await persistResults(formData, runId);
+
+  const supabase = await createClient();
+
+  // 서버 액션은 누구나 POST 할 수 있는 입구다. 폼이 보낸 id 를 그대로 믿지 않고,
+  // 그 항목이 이 점검의 것인지와 그 이슈가 이 점검에서 나온 것인지를 확인한다.
+  const [{ data: target }, { data: issue }] = await Promise.all([
+    supabase
+      .from("inspection_results")
+      .select("id")
+      .eq("id", resultId)
+      .eq("run_id", runId)
+      .maybeSingle(),
+    supabase
+      .from("issues")
+      .select("id")
+      .eq("id", issueId)
+      .eq("source_run_id", runId)
+      .maybeSingle(),
+  ]);
+
+  if (!target) throw new Error("이 점검의 항목이 아닙니다.");
+  if (!issue) throw new Error("이 점검에서 등록된 이슈만 묶을 수 있습니다.");
+
+  const { error } = await supabase
+    .from("inspection_results")
+    .update({ issue_id: issueId })
+    .eq("id", resultId);
+
+  if (error) throw new Error(`묶기에 실패했습니다. (${error.message})`);
+
+  revalidatePath(`/inspections/${runId}`);
+  revalidatePath(`/issues/${issueId}`);
+}
+
+/**
+ * 잘못 묶은 항목의 연결을 끊는다.
+ * 이슈 자체는 지우지 않는다. 점검 항목과의 연결만 푼다.
+ */
+export async function unlinkIssue(formData: FormData): Promise<void> {
+  await requireProfile();
+
+  const runId = id(formData, "run_id");
+  const resultId = id(formData, "unlink_result_id");
+  if (!runId) throw new Error("점검을 찾을 수 없습니다.");
+  if (!resultId) throw new Error("점검 항목을 찾을 수 없습니다.");
+
+  await persistResults(formData, runId);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("inspection_results")
+    .update({ issue_id: null })
+    .eq("id", resultId)
+    .eq("run_id", runId);
+
+  if (error) throw new Error(`연결 해제에 실패했습니다. (${error.message})`);
+
+  revalidatePath(`/inspections/${runId}`);
+}
+
 // ---------------------------------------------------------------------------
 // 점검 첨부파일
 //

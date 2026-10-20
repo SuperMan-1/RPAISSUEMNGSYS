@@ -472,6 +472,23 @@ a.tag:hover {
 .timeline .t-head .who { font-weight: 700; color: var(--text); font-size: 13px; }
 .timeline .t-head .spacer { margin-left: auto; }
 
+/* ----------------------------------- 점검 이상 항목을 기존 이슈에 묶는 줄 */
+
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 7px 10px;
+  background: var(--accent-soft);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.link-row select { width: 150px; }
+
 /* ------------------------------------------------- 목록의 처리 이력 펼치기 */
 
 /* 자바스크립트 없이 details 로 접었다 편다 */

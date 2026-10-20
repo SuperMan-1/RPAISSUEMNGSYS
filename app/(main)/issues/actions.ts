@@ -92,19 +92,28 @@ export async function createIssue(formData: FormData): Promise<ActionError> {
 
   // 정기점검의 이상 항목에서 전환된 경우 양방향으로 연결한다
   const fromResultId = optionalId(formData, "from_result_id");
+  const sourceRunId = optionalId(formData, "source_run_id");
+
   if (fromResultId) {
     await supabase
       .from("inspection_results")
       .update({ issue_id: issue.id })
       .eq("id", fromResultId);
 
-    const sourceRunId = optionalId(formData, "source_run_id");
     if (sourceRunId) revalidatePath(`/inspections/${sourceRunId}`);
     revalidatePath("/inspections");
   }
 
   revalidatePath("/issues");
   revalidatePath("/");
+
+  // 점검에서 전환해 들어온 경우에는 점검 화면으로 되돌린다.
+  // 한 점검에서 이상이 여러 건 나오면 계속 전환해야 하는데,
+  // 이슈 상세로 떨어지면 매번 점검을 다시 찾아가야 한다.
+  if (sourceRunId && fromResultId) {
+    redirect(`/inspections/${sourceRunId}?created=${issue.id}`);
+  }
+
   redirect(`/issues/${issue.id}`);
 }
 
