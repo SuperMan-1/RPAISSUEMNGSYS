@@ -489,6 +489,86 @@ a.tag:hover {
 }
 .link-row select { width: 150px; }
 
+/* ------------------------------------------------------------------- 인쇄 */
+/*
+   PDF 로 받고 싶을 때는 브라우저 인쇄에서 '대상'을 'PDF로 저장' 으로 고른다.
+   서버에서 PDF 를 만들지 않는 이유는 한글 폰트를 심어야 하고(폐쇄망 반입·
+   라이선스), Puppeteer 류는 Chromium 을 끌고 오기 때문이다. 인쇄는 의존성이
+   없고 한글이 완벽하다.
+*/
+@media print {
+  /* 조작용 요소는 종이에 필요 없다 */
+  .topbar,
+  .pager,
+  .filters,
+  .btn,
+  button,
+  .tag,
+  .hint,
+  .help,
+  .hist > summary::after {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+  .page {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .card {
+    border: 1px solid #999;
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+  .card-head {
+    background: #f0f0f0;
+    border-bottom: 1px solid #999;
+  }
+
+  /* 점검 결과: 고른 항목만 글자로 남기고 라디오는 지운다 */
+  .checkline {
+    display: none;
+  }
+  .checkline:has(input:checked) {
+    display: inline-flex;
+    font-weight: 700;
+  }
+  .checkline input {
+    display: none;
+  }
+
+  /* 입력칸은 테두리를 지우고 적힌 값만 보이게 */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="datetime-local"],
+  select,
+  textarea {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: #000 !important;
+    appearance: none;
+  }
+
+  /* 표와 타임라인이 페이지 사이에서 잘리지 않게 */
+  table { break-inside: auto; }
+  tr { break-inside: avoid; }
+  .timeline > li { break-inside: avoid; }
+
+  /* 접어둔 처리 이력도 종이에는 펼쳐서 */
+  .hist-list { display: block !important; }
+
+  a { color: #000; text-decoration: none; }
+}
+
 /* ------------------------------------------------- 목록의 처리 이력 펼치기 */
 
 /* 자바스크립트 없이 details 로 접었다 편다 */

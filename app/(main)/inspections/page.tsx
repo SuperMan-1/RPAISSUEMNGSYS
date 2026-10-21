@@ -116,6 +116,10 @@ export default async function InspectionsPage({
           <p className="sub">전체 {total}건</p>
         </div>
         <div className="page-actions">
+          {/* 화면에 건 필터를 그대로 넘긴다. 보고 있는 그대로 받는 게 자연스럽다 */}
+          <a className="btn" href={`/inspections/export?${base.toString()}`}>
+            엑셀 받기
+          </a>
           <Link className="btn btn-primary" href="/inspections/new">
             + 점검 수행
           </Link>

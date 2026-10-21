@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { StatusBadge } from "@/components/Badges";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { PrintButton } from "@/components/PrintButton";
 import { InspectionResultsForm, type ResultRow } from "@/components/InspectionResultsForm";
 import { RunAttachmentForm } from "@/components/RunAttachmentForm";
 import { requireProfile } from "@/lib/auth";
@@ -229,6 +230,10 @@ export default async function InspectionDetailPage({
               이상 {ngCount}건
             </span>
           )}
+          <a className="btn" href={`/inspections/${run.id}/export`}>
+            엑셀 받기
+          </a>
+          <PrintButton />
           <Link className="btn" href="/inspections">
             점검 이력
           </Link>
